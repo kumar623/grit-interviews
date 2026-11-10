@@ -132,6 +132,19 @@ textarea{min-height:76px;resize:vertical}
 .dot{aspect-ratio:1;border-radius:10px;background:var(--tint);display:grid;place-items:center;font-size:12px;color:var(--ink3)}
 .dot.win{background:var(--ok);color:var(--on-ink)} .dot.lose{background:var(--bad-soft);color:var(--bad)}
 .spin{padding:80px 0;text-align:center;color:var(--ink3)}
+.cell.blk{background:repeating-linear-gradient(135deg,var(--tint2) 0 3px,transparent 3px 7px)}
+.cell.off,.cell.off:hover{background:var(--bad-soft);opacity:.55;cursor:not-allowed}
+.cell.pend{outline:1.5px dashed var(--accent);outline-offset:-2px}
+.avail .hd.offd b{color:var(--bad)}
+select{font:inherit;font-size:14px;color:inherit;padding:7px 10px;border-radius:9px;border:1px solid var(--line);background:var(--panel)}
+.hrs{display:grid;grid-template-columns:104px auto 1fr;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line2)}
+.hrs:last-of-type{border-bottom:0} .hrs .seg{flex-wrap:nowrap} .hrs .tm2{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.kv{display:grid;grid-template-columns:120px 1fr;gap:10px 14px;font-size:14px;align-items:center} .kv>span:nth-child(odd){color:var(--ink3)}
+.avatar{width:64px;height:64px;border-radius:18px;background:var(--accent);color:var(--on-ink);display:grid;place-items:center;font:600 22px "Familjen Grotesk",sans-serif;flex:none}
+.namebtn{font-weight:600;text-align:left;padding:0} .namebtn:hover{text-decoration:underline;text-underline-offset:3px}
+.offrow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line2)} .offrow:last-child{border-bottom:0}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink3)} .legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:5px}
+.ivcard h3{margin-bottom:2px}
 @media (min-width:821px){
   .top{position:fixed;left:0;top:0;bottom:0;width:108px;border-bottom:0;border-right:1px solid var(--line);background:var(--panel);backdrop-filter:none;-webkit-backdrop-filter:none}
   .top .in{flex-direction:column;align-items:stretch;flex-wrap:nowrap;height:100%;padding:16px 8px;gap:20px}
@@ -151,6 +164,7 @@ textarea{min-height:76px;resize:vertical}
   .who{margin-left:0;width:100%;justify-content:space-between} h1{font-size:25px}
   .sched{grid-template-columns:70px 1fr} .sched .act{grid-column:1/-1} .login{padding:28px 16px}
   .wrap{padding:0 16px 60px} .opt{grid-template-columns:repeat(2,1fr)}
+  .hrs{grid-template-columns:1fr auto} .hrs .tm2{grid-column:1/-1} .kv{grid-template-columns:96px 1fr}
 }
 </style>
 </head>
@@ -163,7 +177,7 @@ textarea{min-height:76px;resize:vertical}
 var SB = supabase.createClient('https://xhwseiyviurbqccsjqay.supabase.co', 'sb_publishable_KkYKk3eIUJX71DcxHbpa-A_Op46ln5c');
 var PW = 'grit-demo-2026';
 var TZ = 'Asia/Kolkata';
-var S = { session:null, data:null, view:null, loading:true, modal:null, toast:null, book:null, day:null, filter:'all', after:'pass', race:null, loginErr:null, busy:false, stale:false };
+var S = { session:null, data:null, view:null, loading:true, modal:null, toast:null, book:null, day:null, filter:'all', after:'pass', race:null, loginErr:null, busy:false, stale:false, pending:{}, week:0, hoursDraft:null, offForm:null, prof:null, profId:null, pf:null };
 var root = document.getElementById('app');
 var THEME = 'dark';
 try { THEME = localStorage.getItem('grit-theme') || 'dark'; } catch (e) {}
@@ -182,7 +196,9 @@ var ICON = {
   compare:'M12 3v18M4 6h5v12H4zM15 6h5v12h-5z',
   students:'M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1M9.5 10a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM21 19v-1a4 4 0 0 0-3-3.8M15.5 3.2a3.5 3.5 0 0 1 0 6.6',
   audit:'M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01',
-  race:'M13 2 4 14h7l-1 8 9-12h-7z'
+  race:'M13 2 4 14h7l-1 8 9-12h-7z',
+  profile:'M20 21v-1a5 5 0 0 0-5-5H9a5 5 0 0 0-5 5v1M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
+  interviewers:'M12 3l7 3v5c0 4.5-3 7.8-7 10-4-2.2-7-5.5-7-10V6z'
 };
 function icon(k){ return h('span', {html:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="' + ICON[k] + '"/></svg>'}); }
 
@@ -218,6 +234,22 @@ function ms(d){ return new Date(d).getTime(); }
 function now(){ return Date.now(); }
 function daysAgo(d){ return Math.floor((now() - ms(d)) / 864e5); }
 function istMidnight(key){ var p = key.split('-'); return Date.UTC(+p[0], +p[1]-1, +p[2]) - 5.5*36e5; }
+var SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], DAYNAME = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+var TIMES = []; (function(){ for (var m = 7*60; m <= 22*60; m += 30) TIMES.push((m < 600 ? '0' : '') + Math.floor(m/60) + ':' + (m % 60 ? '30' : '00')); })();
+function hmLabel(t){ var p = t.split(':'), hh = +p[0]; return (hh % 12 || 12) + ':' + p[1] + ' ' + (hh < 12 ? 'AM' : 'PM'); }
+function hoursSummary(hours){
+  if (!hours || !hours.length) return 'No working hours set';
+  var by = {}, parts = [], run = null;
+  hours.forEach(function(x){ by[x.weekday] = x; });
+  [1,2,3,4,5,6,0].forEach(function(d){
+    var x = by[d], key = x ? x.start + '-' + x.end : null;
+    if (run && key && key === run.key) run.last = d;
+    else { if (run) parts.push(run); run = key ? {key:key, first:d, last:d, x:x} : null; }
+  });
+  if (run) parts.push(run);
+  return parts.map(function(r){ return SHORT[r.first] + (r.first !== r.last ? '\u2013' + SHORT[r.last] : '') + ' ' + hmLabel(r.x.start) + '\u2013' + hmLabel(r.x.end); }).join(' \u00b7 ');
+}
+function offDays(hours){ var on = {}; (hours || []).forEach(function(x){ on[x.weekday] = 1; }); return [1,2,3,4,5,6,0].filter(function(d){ return !on[d]; }).map(function(d){ return SHORT[d]; }); }
 function initials(n){ return n.split(' ').map(function(x){ return x[0]; }).join('').slice(0,2); }
 function toast(t){ S.toast = t; render(); setTimeout(function(){ if (S.toast === t){ S.toast = null; render(); } }, 3200); }
 var ERR = {
@@ -232,7 +264,12 @@ var ERR = {
   REASON_REQUIRED:'Add a short reason.',
   EDIT_WINDOW_CLOSED:'Outcomes can be changed for 24 hours. Ask the interview team to correct this one.',
   NULLIFIED:'This badge has been nullified, so the outcome can’t be changed.',
-  NOT_ALLOWED:'You don’t have permission to do that.'
+  NOT_ALLOWED:'You don’t have permission to do that.',
+  DAY_OFF:'That day is marked as a day off. Remove the day off first.',
+  BAD_HOURS:'Each working day needs an end time after its start time, on the hour or half hour.',
+  BAD_PHONE:'Enter a valid mobile number, for example +91 98765 43210.',
+  BAD_URL:'The meeting link must start with https://',
+  NOT_FOUND:'That profile could not be found.'
 };
 function errText(e){ var m = (e && e.message) || String(e); return ERR[m] || m; }
 function call(fn, args){ return SB.rpc(fn, args || {}).then(function(r){ if (r.error) throw new Error(r.error.message); return r.data; }); }
@@ -243,6 +280,7 @@ function refresh(){
     S.data = d; S.loading = false;
     if (!S.view) S.view = d.me.role === 'student' ? 'home' : d.me.role === 'interviewer' ? 'schedule' : 'students';
     if (!S.day) S.day = dayKey(now());
+    if (S.view === 'student' || (S.view === 'profile' && d.me.role === 'student')) loadProfile();
     render();
   }).catch(function(e){ S.loading = false; S.loginErr = errText(e); render(); });
 }
@@ -270,7 +308,7 @@ function signIn(email, pw){
 }
 function signOut(){
   if (rt){ SB.removeChannel(rt); rt = null; }
-  SB.auth.signOut().then(function(){ S.session = null; S.data = null; S.view = null; S.book = null; S.modal = null; render(); });
+  SB.auth.signOut().then(function(){ S.session = null; S.data = null; S.view = null; S.book = null; S.modal = null; S.prof = null; S.pf = null; S.hoursDraft = null; S.pending = {}; S.week = 0; render(); });
 }
 function act(p, okMsg){
   S.busy = true; render();
@@ -279,7 +317,16 @@ function act(p, okMsg){
     .catch(function(e){ S.busy = false; if (S.modal) S.modal.error = errText(e); else toast(errText(e)); render(); });
 }
 function closeModal(){ S.modal = null; if (S.stale){ S.stale = false; refresh(); } else render(); }
-function go(v){ S.view = v; S.book = null; window.scrollTo(0,0); render(); }
+function go(v){
+  S.view = v; S.book = null; S.hoursDraft = null; S.pf = null; window.scrollTo(0,0);
+  if (v === 'profile' && S.data && S.data.me.role === 'student'){ S.prof = null; loadProfile(); }
+  render();
+}
+function loadProfile(){
+  var id = S.view === 'student' ? S.profId : null;
+  call('student_profile', id ? {p_student:id} : {}).then(function(p){ S.prof = p; render(); }).catch(function(e){ toast(errText(e)); });
+}
+function openStudent(id){ S.view = 'student'; S.profId = id; S.prof = null; window.scrollTo(0,0); loadProfile(); render(); }
 
 /* ---------- shared pieces ---------- */
 function badgeSvg(name, mode, size){
@@ -466,7 +513,9 @@ function schedule(all){
   function shift(n){ S.day = dayKey(istMidnight(S.day) + n*864e5 + 6*36e5); render(); }
   function rowFor(s){
     var b = s.booking;
-    if (!b) return h('div', {class:'sched open'}, h('div', {class:'t'}, fTime(s.starts_at)), h('div', {class:'small muted'}, s.status === 'open' ? 'Open for booking' : 'Blocked'), h('span'));
+    if (!b) return h('div', {class:'sched open'}, h('div', {class:'t'}, fTime(s.starts_at)),
+      h('div', {class:'small muted'}, s.status === 'open' ? 'Open for booking' : 'Closed' + (all ? ' \u00b7 ' + s.interviewer : '')),
+      (!all && s.status !== 'open' && ms(s.starts_at) > now()) ? h('div', {class:'row act'}, h('button', {class:'btn ghost sm', onclick:function(){ act(call('set_slot', {p_starts:s.starts_at, p_open:true}), 'Slot reopened'); }}, 'Reopen')) : h('span'));
     var done = ms(s.ends_at) < now(), o = b.outcome;
     return h('div', {class:'sched'}, h('div', {class:'t'}, fTime(s.starts_at)),
       h('div', null, h('b', null, b.student), ' ', o ? h('span', {class:'chip ' + RES[o.result][1]}, RES[o.result][0]) : done ? h('span', {class:'chip warn'}, 'Needs outcome') : h('span', {class:'chip info'}, 'Upcoming'),
@@ -486,32 +535,113 @@ function schedule(all){
         h('button', {class:'btn ghost sm', onclick:function(){ shift(-1); }, 'aria-label':'Previous day'}, '‹'),
         h('button', {class:'btn ghost sm', onclick:function(){ S.day = today; render(); }}, 'Today'),
         h('button', {class:'btn ghost sm', onclick:function(){ shift(1); }, 'aria-label':'Next day'}, '›')),
-      list.length ? list.map(rowFor) : h('p', {class:'muted', style:'padding:22px 0'}, all ? 'No interviews booked on this day.' : 'Nothing on this day. Open some slots in Availability.'))];
+      (!all && dayOffMap()[S.day]) ? h('div', {class:'msg warn', style:'margin:8px 0'}, h('b', null, 'Day off'), dayOffMap()[S.day] + '. Students can\u2019t book you on this day.') : null,
+      list.length ? list.map(rowFor) : h('p', {class:'muted', style:'padding:22px 0'}, all ? 'No interviews booked on this day.' : 'Nothing on this day. Set your working hours or open slots in Availability.'))];
+}
+function dayOffMap(){ var m = {}; ((S.data && S.data.time_off) || []).forEach(function(o){ m[o.date] = o.reason || 'Day off'; }); return m; }
+function hoursCard(){
+  var d = S.data;
+  if (!S.hoursDraft){
+    var by = {}; (d.hours || []).forEach(function(x){ by[x.weekday] = x; });
+    S.hoursDraft = [1,2,3,4,5,6,0].map(function(w){ var x = by[w]; return {weekday:w, on:!!x, start:x ? x.start : '10:00', end:x ? x.end : '17:00'}; });
+  }
+  var dr = S.hoursDraft;
+  function sel(id, val, on, fn){ return h('select', {id:id, disabled:!on, 'aria-label':id, onchange:function(e){ fn(e.target.value); render(); }}, TIMES.map(function(t){ return h('option', {value:t, selected:t === val}, hmLabel(t)); })); }
+  function save(){
+    var bad = dr.filter(function(x){ return x.on && x.end <= x.start; });
+    if (bad.length){ toast(DAYNAME[bad[0].weekday] + ': the end time must be after the start time.'); return; }
+    S.busy = true; render();
+    call('save_hours', {p_hours:dr.filter(function(x){ return x.on; }).map(function(x){ return {weekday:x.weekday, start:x.start, end:x.end}; })})
+      .then(function(r){ S.busy = false; S.hoursDraft = null; return refresh().then(function(){ toast('Hours saved. ' + r.open_slots + ' open slots over the next 3 weeks.'); }); })
+      .catch(function(e){ S.busy = false; toast(errText(e)); render(); });
+  }
+  return h('div', {class:'card'},
+    h('div', {class:'row'}, h('h2', {class:'sp'}, 'Working hours'), h('span', {class:'tiny'}, 'IST, every week')),
+    h('p', {class:'small muted', style:'margin:4px 0 10px'}, 'Students can book you inside these hours. Days switched off are never offered.'),
+    dr.map(function(x){
+      return h('div', {class:'hrs'}, h('b', null, DAYNAME[x.weekday]),
+        h('div', {class:'seg'}, h('button', {class:x.on ? 'on' : '', onclick:function(){ x.on = true; render(); }}, 'Working'), h('button', {class:x.on ? '' : 'on', onclick:function(){ x.on = false; render(); }}, 'Off')),
+        h('div', {class:'tm2'}, x.on ? [sel('from-' + x.weekday, x.start, true, function(v){ x.start = v; }), h('span', {class:'tiny'}, 'to'), sel('to-' + x.weekday, x.end, true, function(v){ x.end = v; }),
+            x.end <= x.start ? h('span', {class:'tiny', style:'color:var(--bad)'}, 'End must be after start') : null] : h('span', {class:'tiny'}, 'Day off every week')));
+    }),
+    h('div', {class:'row', style:'margin-top:14px'}, h('span', {class:'tiny sp'}, 'Saving resets your open slots for the next 3 weeks to these hours. Booked interviews never move.'),
+      h('button', {class:'btn ghost sm', onclick:function(){ S.hoursDraft = null; render(); }}, 'Undo changes'),
+      h('button', {class:'btn sm', disabled:S.busy, onclick:save}, S.busy ? 'Saving…' : 'Save hours')));
+}
+function timeOffCard(){
+  var d = S.data, f = S.offForm || (S.offForm = {date:'', reason:''}), today = dayKey(now());
+  return h('div', {class:'card'},
+    h('h2', null, 'Days off'),
+    h('p', {class:'small muted', style:'margin:4px 0 10px'}, 'Leave, holidays or a busy day. Students can’t book you on these dates.'),
+    h('div', {class:'row', style:'align-items:flex-end'},
+      h('div', null, h('label', {for:'offDate', style:'margin-top:0'}, 'Date'), h('input', {id:'offDate', type:'date', min:today, value:f.date, style:'width:auto', oninput:function(e){ f.date = e.target.value; }})),
+      h('div', {class:'sp', style:'min-width:160px'}, h('label', {for:'offReason', style:'margin-top:0'}, 'Reason (optional)'), h('input', {id:'offReason', value:f.reason, placeholder:'Personal leave', oninput:function(e){ f.reason = e.target.value; }})),
+      h('button', {class:'btn', disabled:S.busy, onclick:function(){ if (!f.date){ toast('Pick a date first.'); return; } addOff(f.date, f.reason, false); }}, 'Add day off')),
+    h('div', {style:'margin-top:12px'}, (d.time_off || []).length ? d.time_off.map(function(o){
+      return h('div', {class:'offrow'}, h('b', {style:'min-width:120px'}, fDay(o.date + 'T06:30:00Z')), h('span', {class:'sp small muted'}, o.reason || 'Day off'),
+        h('button', {class:'btn ghost sm', onclick:function(){ act(call('remove_time_off', {p_date:o.date}), 'Day off removed. Your usual hours are back for that day.'); }}, 'Remove'));
+    }) : h('p', {class:'tiny'}, 'No days off coming up.')));
+}
+function addOff(date, reason, cancel){
+  S.busy = true; render();
+  call('add_time_off', {p_date:date, p_reason:reason, p_cancel:cancel}).then(function(r){
+    S.busy = false; S.offForm = null; S.modal = null;
+    return refresh().then(function(){ toast(r.cancelled ? 'Day off added. ' + r.cancelled + ' interview' + (r.cancelled > 1 ? 's' : '') + ' cancelled and the students told.' : 'Day off added'); });
+  }).catch(function(e){
+    S.busy = false;
+    var m = (e && e.message) || '';
+    if (m.indexOf('HAS_BOOKINGS:') === 0){ S.modal = {type:'offConfirm', n:+m.split(':')[1], date:date, reason:reason}; render(); }
+    else { toast(errText(e)); render(); }
+  });
 }
 function availability(){
-  var d = S.data, today = dayKey(now()), base = istMidnight(today), map = {}, cells = [], i, r;
+  var d = S.data, today = dayKey(now()), base = istMidnight(today) + S.week*7*864e5, map = {}, cells = [], i, r, off = dayOffMap(), working = {};
+  (d.hours || []).forEach(function(x){ working[x.weekday] = 1; });
   d.slots.forEach(function(s){ map[ms(s.starts_at)] = s; });
-  function toggle(t, s){
-    if (s && s.status === 'booked'){ toast(ERR.SLOT_BOOKED); return; }
-    var open = !(s && s.status === 'open');
-    if (open) map[t] = {status:'open'}; else delete map[t];
-    call('set_slot', {p_starts:new Date(t).toISOString(), p_open:open}).then(refresh).catch(function(e){ toast(errText(e)); refresh(); });
+  function eff(t){ var s = map[t]; if (S.pending[t] != null) return S.pending[t] ? 'open' : 'closed'; return s ? (s.status === 'blocked' ? 'closed' : s.status) : 'none'; }
+  function toggle(t){
+    var st = eff(t);
+    if (st === 'booked'){ toast(ERR.SLOT_BOOKED); return; }
+    var open = st !== 'open';
+    S.pending[t] = open; render();
+    call('set_slot', {p_starts:new Date(t).toISOString(), p_open:open})
+      .catch(function(e){ toast(errText(e)); })
+      .then(refresh)
+      .then(function(){ if (S.pending[t] === open) delete S.pending[t]; render(); });
   }
   cells.push(h('div'));
-  for (i = 0; i < 7; i++) cells.push(h('div', {class:'hd'}, fmt(base + i*864e5 + 6*36e5, {weekday:'short'}), h('b', null, fmt(base + i*864e5 + 6*36e5, {day:'numeric', month:'short'}))));
-  for (r = 0; r < 22; r++){
-    cells.push(h('div', {class:'tm'}, fTime(base + (9*60 + r*30)*6e4)));
+  for (i = 0; i < 7; i++) (function(dt){
+    var k = dayKey(dt), wd = new Date(dt).getUTCDay();
+    cells.push(h('div', {class:'hd' + (off[k] ? ' offd' : '')}, fmt(dt, {weekday:'short'}), h('b', null, fmt(dt, {day:'numeric', month:'short'})),
+      h('div', {class:'tiny'}, off[k] ? 'Day off' : working[wd] ? ' ' : 'Not working')));
+  })(base + i*864e5 + 6*36e5);
+  for (r = 0; r < 28; r++){
+    cells.push(h('div', {class:'tm'}, fTime(base + (8*60 + r*30)*6e4)));
     for (i = 0; i < 7; i++) (function(t){
-      var s = map[t], past = t < now() + 6e4, cls = s ? (s.status === 'booked' ? 'booked' : s.status === 'open' ? 'open' : '') : '';
-      cells.push(h('button', {class:'cell ' + cls + (past ? ' past' : ''), disabled:past, title:fFull(t),
-        'aria-label':fFull(t) + (s ? ', ' + s.status : ', closed'), onclick:function(){ toggle(t, s); }},
-        s && s.booking ? initials(s.booking.student) : s && s.status === 'booked' ? '•' : ''));
-    })(base + i*864e5 + (9*60 + r*30)*6e4);
+      var s = map[t], st = eff(t), past = t < now() + 6e4, k = dayKey(t), isOff = !!off[k] && st !== 'booked';
+      var cls = st === 'booked' ? 'booked' : st === 'open' ? 'open' : (s && s.status === 'blocked' && S.pending[t] == null) ? 'blk' : '';
+      if (isOff) cls += ' off';
+      if (S.pending[t] != null) cls += ' pend';
+      var label = fFull(t) + (isOff ? ', day off' : st === 'booked' ? ', booked' : st === 'open' ? ', open' : ', closed');
+      cells.push(h('button', {class:'cell ' + cls + (past ? ' past' : ''), disabled:past || isOff, title:isOff ? 'Day off: ' + off[k] : label,
+        'aria-label':label, onclick:function(){ toggle(t); }},
+        s && s.booking && st === 'booked' ? initials(s.booking.student) : st === 'booked' ? '•' : ''));
+    })(base + i*864e5 + (8*60 + r*30)*6e4);
   }
   var open = d.slots.filter(function(s){ return s.status === 'open' && ms(s.starts_at) > now(); }).length;
-  return [h('div', {class:'head'}, h('h1', null, 'Availability'), h('p', null, 'Tap a half hour to open or close it. Students see open times within seconds. Booked slots are locked: cancel the interview from your schedule if you can’t make it.')),
-    h('div', {class:'card'}, h('div', {class:'row', style:'margin-bottom:14px'}, h('span', {class:'chip info'}, open + ' open slots'), h('span', {class:'tiny'}, 'Next 7 days · IST'),
-        h('span', {class:'sp'}), h('span', {class:'tiny'}, 'Light blue: open · Dark: booked')),
+  var wk = S.week === 0 ? 'This week' : S.week === 1 ? 'Next week' : 'Week of ' + fDate(base + 6*36e5);
+  return [h('div', {class:'head'}, h('h1', null, 'Availability'), h('p', null, 'Set your usual working hours and days off. Students can book any open half hour. You can still open or close single slots on the grid.')),
+    h('div', {class:'grid2', style:'margin-bottom:18px'}, hoursCard(), h('div', {class:'stack'}, timeOffCard(),
+      h('div', {class:'card'}, h('h3', null, 'This adds up to'), h('div', {class:'tile', style:'border:0;padding:8px 0 0'}, h('b', null, open), h('span', null, 'open slots over the next 3 weeks')),
+        h('p', {class:'tiny', style:'margin-top:6px'}, hoursSummary(d.hours) + (offDays(d.hours).length ? '. Off: ' + offDays(d.hours).join(', ') + '.' : '.'))))),
+    h('div', {class:'card'},
+      h('div', {class:'row', style:'margin-bottom:14px'}, h('h2', {class:'sp'}, wk),
+        h('button', {class:'btn ghost sm', disabled:S.week === 0, onclick:function(){ S.week--; render(); }, 'aria-label':'Previous week'}, '‹'),
+        h('button', {class:'btn ghost sm', disabled:S.week === 0, onclick:function(){ S.week = 0; render(); }}, 'This week'),
+        h('button', {class:'btn ghost sm', disabled:S.week === 2, onclick:function(){ S.week++; render(); }, 'aria-label':'Next week'}, '›')),
+      h('div', {class:'legend', style:'margin-bottom:12px'},
+        h('span', null, h('i', {style:'background:var(--cell-open)'}), 'Open'), h('span', null, h('i', {style:'background:var(--accent)'}), 'Booked'),
+        h('span', null, h('i', {style:'background:var(--tint)'}), 'Closed, tap to open'), h('span', null, h('i', {style:'background:var(--bad-soft)'}), 'Day off')),
       h('div', {class:'scroll'}, h('div', {class:'avail'}, cells)))];
 }
 
@@ -545,7 +675,7 @@ function students(){
       h('div', {class:'scroll'}, h('table', null, h('thead', null, h('tr', null, ['Student','Track','Status','Detail','Attempts',''].map(function(x){ return h('th', null, x); }))),
         h('tbody', null, rows.filter(groups[f]).map(function(r){
           var s = r.status;
-          return h('tr', null, h('td', null, h('b', null, r.name), h('div', {class:'tiny'}, r.campus || '')), h('td', null, r.track),
+          return h('tr', null, h('td', null, h('button', {class:'namebtn', onclick:function(){ openStudent(r.student_id); }}, r.name), h('div', {class:'tiny'}, (r.campus || '') + (r.batch ? ' \u00b7 ' + r.batch : ''))), h('td', null, r.track),
             h('td', null, chip(s.state), attn(r) ? h('div', {class:'tiny', style:'color:var(--warn);margin-top:3px'}, 'Needs attention') : null),
             h('td', {class:'small'}, detail(r), r.last_reminder_at ? h('div', {class:'tiny'}, 'Reminded ' + (daysAgo(r.last_reminder_at) ? daysAgo(r.last_reminder_at) + 'd ago' : 'today')) : null),
             h('td', {class:'small'}, s.attempts_used + ' of ' + s.max_attempts),
@@ -554,7 +684,27 @@ function students(){
               s.state !== 'nullified' ? h('button', {class:'btn bad sm', onclick:function(){ S.modal = {type:'flag', row:r, reason:''}; render(); }}, 'Flag') : null)));
         })))))];
 }
-var ACT = { booked:'booked an interview', rescheduled:'moved their interview', cancelled:'cancelled an interview', outcome_recorded:'recorded an outcome', outcome_changed:'changed an outcome', badge_nullified:'nullified a badge', reminder_sent:'sent a reminder' };
+function interviewersView(){
+  var list = S.data.interviewers || [];
+  var open = list.reduce(function(a, x){ return a + x.stats.open_7; }, 0), waiting = S.data.students.filter(function(r){ return r.status.state === 'eligible'; }).length;
+  return [h('div', {class:'head'}, h('h1', null, 'Interviewers'), h('p', null, 'Who is working when, who is off, and how much capacity the team has this week.')),
+    h('div', {class:'tiles', style:'margin-bottom:18px'},
+      h('div', {class:'tile'}, h('b', null, list.length), h('span', null, 'Interviewers')),
+      h('div', {class:'tile'}, h('b', null, open), h('span', null, 'Open slots, next 7 days')),
+      h('div', {class:'tile'}, h('b', null, waiting), h('span', null, 'Students still to book')),
+      h('div', {class:'tile'}, h('b', null, list.reduce(function(a, x){ return a + x.time_off.length; }, 0)), h('span', null, 'Days off coming up'))),
+    h('div', {class:'stack'}, list.map(function(x){
+      return h('div', {class:'card ivcard'}, h('div', {class:'row', style:'align-items:flex-start'}, h('div', {class:'avatar', style:'width:44px;height:44px;border-radius:13px;font-size:15px'}, initials(x.name)),
+          h('div', {class:'sp'}, h('h3', null, x.name), h('div', {class:'tiny'}, x.email + (x.phone ? ' \u00b7 ' + x.phone : '')), x.bio ? h('p', {class:'small muted', style:'margin-top:4px'}, x.bio) : null),
+          h('span', {class:'chip info'}, x.stats.open_7 + ' open this week')),
+        h('div', {class:'kv', style:'margin-top:14px'},
+          h('span', null, 'Working hours'), h('span', null, hoursSummary(x.hours)),
+          h('span', null, 'Weekly off'), h('span', null, offDays(x.hours).join(', ') || 'None'),
+          h('span', null, 'Days off'), h('span', null, x.time_off.length ? x.time_off.map(function(o){ return fDay(o.date + 'T06:30:00Z') + (o.reason ? ' (' + o.reason + ')' : ''); }).join(', ') : 'None coming up'),
+          h('span', null, 'Interviews'), h('span', null, x.stats.upcoming + ' upcoming \u00b7 ' + x.stats.done + ' done \u00b7 ' + x.stats.awaiting + ' awaiting an outcome')));
+    }))];
+}
+var ACT = { booked:'booked an interview', rescheduled:'moved their interview', cancelled:'cancelled an interview', outcome_recorded:'recorded an outcome', outcome_changed:'changed an outcome', badge_nullified:'nullified a badge', reminder_sent:'sent a reminder', hours_saved:'changed their working hours', day_off_added:'added a day off', day_off_removed:'removed a day off' };
 function audit(){
   return [h('div', {class:'head'}, h('h1', null, 'Audit log'), h('p', null, 'Every booking, outcome, change and nullification, with who did it and when.')),
     h('div', {class:'card'}, h('div', {class:'scroll'}, h('table', null, h('thead', null, h('tr', null, ['When','Who','What','Student','Detail'].map(function(x){ return h('th', null, x); }))),
@@ -564,6 +714,9 @@ function audit(){
         if (dt.reason) bits.push(dt.reason);
         if (dt.starts_at) bits.push(fFull(dt.starts_at));
         if (dt.to) bits.push('to ' + fFull(dt.to));
+        if (dt.date) bits.push(fDay(dt.date + 'T06:30:00Z'));
+        if (dt.cancelled) bits.push(dt.cancelled + ' interview' + (dt.cancelled > 1 ? 's' : '') + ' cancelled');
+        if (dt.working_days != null) bits.push(dt.working_days + ' working days');
         return h('tr', null, h('td', {class:'small', style:'white-space:nowrap'}, fDate(a.at) + ', ' + fTime(a.at)), h('td', null, a.actor || 'System'), h('td', null, ACT[a.action] || a.action),
           h('td', null, a.student || '', a.track ? h('div', {class:'tiny'}, a.track) : null), h('td', {class:'small muted'}, bits.join(' · ')));
       })))))];
@@ -588,14 +741,89 @@ function race(){
       h('p', {class:'small muted', style:'margin-top:14px'}, 'How it works: booking runs in one transaction that locks an open slot row and flips it to booked. A unique index on bookings(slot_id) is the backstop. The test uses a throwaway slot and cleans up after itself.'))];
 }
 
+/* ---------- profiles ---------- */
+function editCard(me){
+  var pf = S.pf || (S.pf = {phone:me.phone || '', bio:me.bio || '', meet:me.meet_url || ''});
+  return h('div', {class:'card'}, h('h3', null, 'Your details'),
+    h('div', {class:'kv', style:'margin-top:12px'}, h('span', null, 'Email'), h('span', null, me.email), me.campus ? [h('span', null, 'Campus'), h('span', null, me.campus)] : null, me.batch ? [h('span', null, 'Batch'), h('span', null, me.batch)] : null),
+    h('label', {for:'pfPhone'}, 'Mobile number'), h('input', {id:'pfPhone', value:pf.phone, inputmode:'tel', placeholder:'+91 98765 43210', oninput:function(e){ pf.phone = e.target.value; }}),
+    me.role === 'interviewer' ? [h('label', {for:'pfMeet'}, 'Your meeting link'), h('input', {id:'pfMeet', value:pf.meet, placeholder:'https://meet.google.com/abc-defg-hij', oninput:function(e){ pf.meet = e.target.value; }}),
+      h('p', {class:'tiny', style:'margin-top:4px'}, 'New bookings use this link. Leave empty to get a fresh link for each interview.')] : null,
+    me.role !== 'student' ? [h('label', {for:'pfBio'}, 'About you'), h('textarea', {id:'pfBio', value:pf.bio, placeholder:'Tracks you interview for, when you usually work.', oninput:function(e){ pf.bio = e.target.value; }})] : null,
+    h('div', {class:'row', style:'margin-top:14px;justify-content:flex-end'}, h('button', {class:'btn', disabled:S.busy, onclick:function(){
+      S.busy = true; render();
+      call('update_profile', {p_phone:pf.phone, p_bio:pf.bio, p_meet_url:pf.meet}).then(function(){ S.busy = false; S.pf = null; return refresh(); })
+        .then(function(){ if (me.role === 'student') loadProfile(); toast('Profile saved'); })
+        .catch(function(e){ S.busy = false; toast(errText(e)); render(); });
+    }}, S.busy ? 'Saving…' : 'Save')));
+}
+function histRow(x, staff){
+  var label, cls;
+  if (x.result){ label = RES[x.result][0]; cls = RES[x.result][1]; }
+  else if (x.status === 'cancelled'){ label = 'Cancelled' + (x.cancelled_by && x.cancelled_by !== 'student' ? ' by ' + (x.cancelled_by === 'team' ? 'GRIT team' : 'interviewer') : ''); cls = ''; }
+  else if (x.status === 'booked'){ label = ms(x.ends_at) < now() ? 'Awaiting result' : 'Upcoming'; cls = ms(x.ends_at) < now() ? 'warn' : 'info'; }
+  else { label = x.status; cls = ''; }
+  return h('tr', null, h('td', {class:'small', style:'white-space:nowrap'}, fDay(x.starts_at), h('div', {class:'tiny'}, fTime(x.starts_at))),
+    h('td', null, x.track, h('div', {class:'tiny'}, 'Attempt ' + x.attempt_no)), h('td', {class:'small'}, x.interviewer),
+    h('td', null, h('span', {class:'chip ' + cls}, label)),
+    h('td', {class:'small muted'}, x.feedback || x.cancel_reason || '', staff && x.notes ? h('div', {class:'tiny', style:'margin-top:4px'}, 'Private note: ' + x.notes) : null));
+}
+function studentProfile(p, self){
+  var back = !self ? h('button', {class:'link', onclick:function(){ go('students'); }}, '‹ Students') : null;
+  if (!p) return [h('div', {class:'head'}, back), h('div', {class:'spin'}, 'Loading profile')];
+  var staff = !self, qual = p.badges > 0, me = S.data.me;
+  return [h('div', {class:'head'}, back,
+      h('div', {class:'row', style:'margin-top:' + (back ? '12px' : '0') + ';align-items:center'}, h('div', {class:'avatar'}, initials(p.name)),
+        h('div', {class:'sp'}, h('h1', null, p.name), h('p', null, [p.campus, p.batch ? 'Batch ' + p.batch : null].filter(Boolean).join(' · '))),
+        h('span', {class:'chip ' + (qual ? 'ok' : 'info')}, qual ? 'Qualiflyer' : 'Pre-Qualiflyer'))),
+    h('div', {class:'tiles', style:'margin-bottom:18px'},
+      h('div', {class:'tile'}, h('b', null, p.miles), h('span', null, 'Miles')),
+      h('div', {class:'tile'}, h('b', null, '#' + p.rank), h('span', null, 'Rank of ' + p.of)),
+      h('div', {class:'tile'}, h('b', null, p.badges), h('span', null, 'Track Badges')),
+      h('div', {class:'tile'}, h('b', null, p.history.filter(function(x){ return x.result && x.result !== 'retake'; }).length), h('span', null, 'Interviews taken'))),
+    h('div', {class:'grid2'},
+      h('div', {class:'stack'},
+        h('div', {class:'card'}, h('h2', {style:'margin-bottom:6px'}, 'Track Badges'), p.tracks.map(function(t){
+          return h('div', {class:'row', style:'align-items:flex-start;padding:14px 0;border-top:1px solid var(--line2)'}, badgeSvg(t.name, badgeMode(t.status), 48),
+            h('div', {class:'sp'}, h('div', {class:'row'}, h('b', {class:'sp'}, 'Novice Badge · ' + t.name), chip(t.status.state)),
+              h('div', {class:'skills'}, t.skills.map(function(k){ return h('span', {class:'skill' + (k.cleared ? ' on' : ''), title:k.cleared_at ? 'Cleared ' + fDate(k.cleared_at) : 'Not cleared yet'}, k.name); }))));
+        }))),
+      h('div', {class:'stack'},
+        self ? editCard(Object.assign({}, me, {email:p.email, phone:p.phone, campus:p.campus, batch:p.batch})) : h('div', {class:'card'}, h('h3', null, 'Contact'),
+          h('div', {class:'kv', style:'margin-top:12px'}, h('span', null, 'Email'), h('span', null, p.email), h('span', null, 'Mobile'), h('span', null, p.phone || 'Not added'),
+            h('span', null, 'Campus'), h('span', null, p.campus || ''), h('span', null, 'Batch'), h('span', null, p.batch || ''))),
+        staff && p.flags && p.flags.length ? h('div', {class:'card'}, h('h3', null, 'Malpractice flags'), p.flags.map(function(f){
+          return h('div', {class:'msg bad', style:'margin-top:10px'}, h('b', null, f.track + ' · ' + fDate(f.at)), f.reason); })) : null)),
+    h('div', {class:'card', style:'margin-top:18px'}, h('h2', {style:'margin-bottom:10px'}, 'Interview history'),
+      p.history.length ? h('div', {class:'scroll'}, h('table', null, h('thead', null, h('tr', null, ['When','Track','Interviewer','Outcome','Feedback'].map(function(x){ return h('th', null, x); }))),
+        h('tbody', null, p.history.map(function(x){ return histRow(x, staff); })))) : h('p', {class:'small muted'}, 'No interviews yet.'))];
+}
+function staffProfile(){
+  var me = S.data.me, st = S.data.stats;
+  return [h('div', {class:'head'}, h('div', {class:'row', style:'align-items:center'}, h('div', {class:'avatar'}, initials(me.name)),
+      h('div', {class:'sp'}, h('h1', null, me.name), h('p', null, me.role === 'team' ? 'GRIT interview team' : 'Interviewer')))),
+    me.role === 'interviewer' ? h('div', {class:'tiles', style:'margin-bottom:18px'},
+      h('div', {class:'tile'}, h('b', null, st.upcoming), h('span', null, 'Upcoming interviews')),
+      h('div', {class:'tile'}, h('b', null, st.done), h('span', null, 'Interviews done')),
+      h('div', {class:'tile'}, h('b', null, st.done ? Math.round(100 * st.passed / st.done) + '%' : '–'), h('span', null, 'Pass rate')),
+      h('div', {class:'tile'}, h('b', null, st.open_7), h('span', null, 'Open slots, next 7 days'))) : null,
+    h('div', {class:'grid2'}, editCard(me),
+      me.role === 'interviewer' ? h('div', {class:'card'}, h('h3', null, 'Your availability'),
+        h('div', {class:'kv', style:'margin-top:12px'}, h('span', null, 'Working hours'), h('span', null, hoursSummary(S.data.hours)),
+          h('span', null, 'Weekly off'), h('span', null, offDays(S.data.hours).join(', ') || 'None'),
+          h('span', null, 'Days off'), h('span', null, (S.data.time_off || []).length ? S.data.time_off.map(function(o){ return fDay(o.date + 'T06:30:00Z'); }).join(', ') : 'None coming up')),
+        h('button', {class:'btn ghost', style:'margin-top:16px', onclick:function(){ go('availability'); }}, 'Change hours or days off'))
+      : h('div', {class:'card'}, h('h3', null, 'Your access'), h('p', {class:'small muted', style:'margin-top:8px'}, 'You can see every student and interviewer, record or correct outcomes, send reminders and flag malpractice. Every action is in the audit log.')))];
+}
+
 /* ---------- guide ---------- */
 function guideBody(){
   return h('div', {class:'guide'}, h('h3', null, 'Review this in three minutes'),
     h('ol', null,
       h('li', null, h('b', null, 'Student: '), 'sign in as Aarav and book a slot. Try Reschedule and Cancel.'),
-      h('li', null, h('b', null, 'Interviewer: '), 'sign in as Priya. Open or close slots in Availability, then record an outcome for Kabir in Your schedule.'),
+      h('li', null, h('b', null, 'Interviewer: '), 'sign in as Priya. In Availability, set working hours (weekends off), add a day off, or open and close single slots. Then record an outcome for Kabir in Schedule.'),
       h('li', null, h('b', null, 'Result: '), 'sign back in as the student to see the result. Before and after shows all four outcomes side by side.'),
-      h('li', null, h('b', null, 'Interview team: '), 'sign in as Sanjay to see who has booked and who hasn’t, send a reminder, or flag malpractice to nullify a badge.'),
+      h('li', null, h('b', null, 'Interview team: '), 'sign in as Sanjay to see who has booked and who hasn’t, open any student’s profile, check interviewers’ hours, send a reminder, or flag malpractice.'),
       h('li', null, h('b', null, 'Double booking: '), 'as Sanjay, open Race test and fire 20 bookings at one slot.'),
       h('li', null, h('b', null, 'Live updates: '), 'keep two windows open. A slot booked in one disappears from the other.')),
     h('p', {class:'tiny', style:'margin-top:8px'}, 'Demo data resets itself every day. Reset demo in the top bar restores it at any time.'));
@@ -625,6 +853,11 @@ function modal(){
     body = [h('h2', null, 'Flag malpractice'), h('p', {class:'muted small', style:'margin-top:4px'}, m.row.name + ' · ' + m.row.track + ' · Novice Badge. This nullifies the badge, removes its Miles and cancels any upcoming interview. It is recorded in the audit log.'),
       h('label', {for:'rs'}, 'What was found'), h('textarea', {id:'rs', value:m.reason, oninput:function(e){ m.reason = e.target.value; }}), err,
       foot('Nullify badge', function(){ act(call('flag_malpractice', {p_student:m.row.student_id, p_track:m.row.track_id, p_reason:m.reason}), 'Badge nullified'); }, 'bad')];
+  } else if (m.type === 'offConfirm'){
+    body = [h('h2', null, 'Cancel ' + m.n + ' interview' + (m.n > 1 ? 's' : '') + '?'),
+      h('p', {class:'muted', style:'margin-top:6px'}, 'You have ' + m.n + ' interview' + (m.n > 1 ? 's' : '') + ' booked on ' + fDay(m.date + 'T06:30:00Z') + '. Taking the day off cancels ' + (m.n > 1 ? 'them' : 'it') + '. Each student is told straight away and can rebook without losing an attempt.'),
+      h('div', {class:'row', style:'margin-top:18px;justify-content:flex-end'}, h('button', {class:'btn ghost', onclick:closeModal}, 'Keep my interviews'),
+        h('button', {class:'btn bad', disabled:S.busy, onclick:function(){ addOff(m.date, m.reason, true); }}, 'Take the day off'))];
   } else if (m.type === 'guide'){
     body = [guideBody(), h('div', {class:'row', style:'margin-top:16px;justify-content:flex-end'}, h('button', {class:'btn', onclick:closeModal}, 'Got it'))];
   }
@@ -634,8 +867,9 @@ function modal(){
 /* ---------- login and shell ---------- */
 function login(){
   var em, pw;
-  var main = [['aarav','Aarav Sharma','Student. Eligible and ready to book.'],['priya','Priya Menon','Interviewer. Has interviews today.'],['sanjay','Sanjay Kulkarni','Interview team. Sees every student.']];
-  var more = [['diya','Diya, booked'],['kabir','Kabir, awaiting result'],['meera','Meera, passed'],['rohan','Rohan, not cleared'],['ananya','Ananya, retake'],['vikram','Vikram, nullified'],['ishaan','Ishaan, not eligible']];
+  var main = [['aarav','Aarav Sharma','Student. Eligible and ready to book.'],['priya','Priya Menon','Interviewer. Weekdays 10 AM to 5 PM, weekends off.'],['sanjay','Sanjay Kulkarni','Interview team. Sees every student.']];
+  var more = [['diya','Diya, booked'],['kabir','Kabir, awaiting result'],['meera','Meera, passed'],['rohan','Rohan, not cleared'],['ananya','Ananya, retake'],['vikram','Vikram, nullified'],['ishaan','Ishaan, not eligible'],['tara','Tara, booked'],['sneha','Sneha, reminded'],['nikhil','Nikhil, just eligible'],['pooja','Pooja, eligible 12 days']];
+  var ivs = [['arjun','Arjun Rao, Mon\u2013Sat'],['neha','Neha Kapoor, has a day off']];
   return h('div', {class:'login'},
     h('div', null, h('div', {class:'row'}, h('div', {class:'mark sp'}, 'GRIT', h('span', null, 'Level Clearance Interviews')), h('button', {class:'link', onclick:flipTheme}, THEME === 'dark' ? 'Light mode' : 'Dark mode')),
       h('h1', {style:'margin:26px 0 8px'}, 'Sign in'), h('p', {class:'muted'}, 'Book, run and track the Level Clearance Interview that turns cleared skill levels into a Track Badge.'),
@@ -647,21 +881,24 @@ function login(){
           h('button', {class:'btn', style:'margin-top:16px;width:100%', disabled:S.busy}, S.busy ? 'Signing in…' : 'Sign in'))),
       h('div', {class:'sec', style:'margin-top:26px'}, 'Demo accounts, one tap'),
       main.map(function(a){ return h('button', {class:'acct', disabled:S.busy, onclick:function(){ signIn(a[0] + '@grit.demo', PW); }}, h('i', null, initials(a[1])), h('div', null, h('b', null, a[1]), h('span', null, a[2]))); }),
-      h('div', {class:'sec'}, 'Other student states'),
-      h('div', {class:'row', style:'gap:6px'}, more.map(function(a){ return h('button', {class:'btn ghost sm', disabled:S.busy, onclick:function(){ signIn(a[0] + '@grit.demo', PW); }}, a[1]); }))),
+      h('div', {class:'sec'}, 'More students (12 in all)'),
+      h('div', {class:'row', style:'gap:6px'}, more.map(function(a){ return h('button', {class:'btn ghost sm', disabled:S.busy, onclick:function(){ signIn(a[0] + '@grit.demo', PW); }}, a[1]); })),
+      h('div', {class:'sec'}, 'More interviewers (3 in all)'),
+      h('div', {class:'row', style:'gap:6px'}, ivs.map(function(a){ return h('button', {class:'btn ghost sm', disabled:S.busy, onclick:function(){ signIn(a[0] + '@grit.demo', PW); }}, a[1]); }))),
     h('div', {class:'card', style:'margin-top:52px'}, guideBody()));
 }
-var NAV = { student:[['home','Dashboard'],['compare','Before and after']], interviewer:[['schedule','Schedule'],['availability','Availability'],['compare','Before and after']],
-  team:[['students','Students'],['interviews','Interviews'],['audit','Audit log'],['race','Race test'],['compare','Before and after']] };
+var NAV = { student:[['home','Dashboard'],['profile','Profile'],['compare','Before and after']], interviewer:[['schedule','Schedule'],['availability','Availability'],['profile','Profile'],['compare','Before and after']],
+  team:[['students','Students'],['interviews','Interviews'],['interviewers','Interviewers'],['audit','Audit log'],['race','Race test'],['profile','Profile'],['compare','Before and after']] };
 function render(){
   var kids;
   if (!S.session) kids = [login()];
   else if (S.loading || !S.data) kids = [h('div', {class:'spin'}, 'Loading')];
   else {
     var d = S.data, v = S.view, body = v === 'home' ? studentHome() : v === 'book' ? bookView() : v === 'compare' ? compare() : v === 'schedule' ? schedule(false)
-      : v === 'interviews' ? schedule(true) : v === 'availability' ? availability() : v === 'students' ? students() : v === 'audit' ? audit() : race();
+      : v === 'interviews' ? schedule(true) : v === 'availability' ? availability() : v === 'students' ? students() : v === 'audit' ? audit()
+      : v === 'interviewers' ? interviewersView() : v === 'student' ? studentProfile(S.prof, false) : v === 'profile' ? (d.me.role === 'student' ? studentProfile(S.prof, true) : staffProfile()) : race();
     kids = [h('div', {class:'top'}, h('div', {class:'in'}, h('div', {class:'mark'}, 'GRIT'),
-        h('div', {class:'nav'}, NAV[d.me.role].map(function(n){ return h('button', {class:(v === n[0] || (v === 'book' && n[0] === 'home')) ? 'on' : '', onclick:function(){ go(n[0]); }}, icon(n[0]), n[1]); })),
+        h('div', {class:'nav'}, NAV[d.me.role].map(function(n){ return h('button', {class:(v === n[0] || (v === 'book' && n[0] === 'home') || (v === 'student' && n[0] === 'students')) ? 'on' : '', onclick:function(){ go(n[0]); }}, icon(n[0]), n[1]); })),
         h('div', {class:'who'}, h('i', {class:'av'}, initials(d.me.name)), h('span', null, d.me.name + ' · ' + (d.me.role === 'team' ? 'Interview team' : d.me.role === 'interviewer' ? 'Interviewer' : 'Student')),
           h('span', {class:'row', style:'gap:12px'}, h('button', {class:'link', onclick:function(){ S.modal = {type:'guide'}; render(); }}, 'Guide'),
             h('button', {class:'link', onclick:flipTheme}, THEME === 'dark' ? 'Light mode' : 'Dark mode'),

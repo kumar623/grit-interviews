@@ -6,14 +6,17 @@ Working prototype for the GRIT (NIAT) interview scheduling assignment.
 - **Write-up (2 pages):** [docs/writeup.pdf](docs/writeup.pdf)
 - **PRD:** [docs/PRD.md](docs/PRD.md)
 
-Sign in with the one-tap demo accounts on the login page (Student, Interviewer, Interview team). Every demo account uses the password `grit-demo-2026`. Demo data resets itself daily, and "Reset demo" in the top bar restores it at any time.
+Sign in with the one-tap demo accounts on the login page: 12 students, 3 interviewers and 1 interview team member. Every demo account uses the password `grit-demo-2026`. Demo data resets itself daily, and "Reset demo" in the top bar restores it at any time.
 
 ## What it does
 
 - Students who have cleared every skill for a Track Badge book a 30-minute interview, and can reschedule or cancel until 12 hours before.
-- Interviewers open and close availability and record the outcome: passed, not cleared, retake later, or no-show.
+- Interviewers set weekly working hours (for example Monday to Friday, 10 AM to 5 PM, weekends off) and days off. Open slots for the next 3 weeks follow automatically; single slots can still be opened or closed by hand. A day off that already has bookings asks first, then cancels them and tells the students, without costing them an attempt.
+- Interviewers record the outcome: passed, not cleared, retake later, or no-show.
 - Students see their status, result and feedback on their home screen.
 - The interview team sees who has booked and who hasn't, sends reminders, and can flag malpractice, which nullifies the badge.
+- Every user has a profile page. Students see their Miles, rank, Track Badges and full interview history; the team can open any student's profile, including private notes and malpractice flags. Interviewers can set their own meeting link.
+- The team's Interviewers page shows everyone's hours, days off and capacity for the week.
 - "Before and after" shows the student home card, badge shelf, leaderboard row and public profile for each outcome.
 
 ## How it is built
@@ -25,6 +28,7 @@ Sign in with the one-tap demo accounts on the login page (Student, Interviewer, 
 | Database, login, live updates | Supabase: Postgres, Auth, row level security, Realtime |
 | Schema, access rules | `supabase/migrations/0001_schema_and_rls.sql` |
 | GRIT tracks and skill levels | `supabase/migrations/0005_grit_terminology.sql` |
+| Working hours, days off, profiles | `supabase/migrations/0006_hours_time_off_profiles.sql` |
 | Booking, outcomes, nullification | `supabase/migrations/0003_interview_logic.sql` |
 
 The browser never writes to tables. Every write goes through a database function that checks the caller's role and writes to the audit log.
