@@ -28,16 +28,16 @@ b{font-weight:600}
 <p>State is kept per student per track and is derived in one database function from skills, bookings, outcomes and flags, so the student screen, the team table and the booking rules can never disagree.</p>
 <table>
 <tr><th>State</th><th>The student is here when</th><th>What moves it on</th></tr>
-<tr><td>Not eligible</td><td>Some required skills for the track are not cleared.</td><td>Last required skill contest cleared → <b>Eligible</b>.</td></tr>
-<tr><td>Eligible, not booked</td><td>All skills cleared and no live booking. Also re-entered after a cancel, a retake, a first no-show, or when a cooldown ends.</td><td>Student confirms a slot → <b>Booked</b>.</td></tr>
+<tr><td>Not eligible</td><td>Some required skill levels (L1 to L4) for the badge are not cleared.</td><td>Last required skill level cleared → <b>Eligible</b>.</td></tr>
+<tr><td>Eligible, not booked</td><td>All skill levels for the badge cleared and no live booking. Also re-entered after a cancel, a retake, a first no-show, or when a cooldown ends.</td><td>Student confirms a slot → <b>Booked</b>.</td></tr>
 <tr><td>Booked</td><td>A slot is held; join link opens 10 min before.</td><td>Student cancels or reschedules (until 12 h before) → Eligible / Booked. Interviewer or team cancels with a reason → Eligible. Slot end time passes → <b>Awaiting result</b>.</td></tr>
 <tr><td>Awaiting result</td><td>Interview time is over, no outcome recorded yet.</td><td>Interviewer records Pass / Fail / Retake later / No-show.</td></tr>
-<tr><td>Passed (badge earned)</td><td>Outcome is Pass. Badge and +500 points appear at once.</td><td>Outcome corrected within 24 h → matching state. Malpractice flag → <b>Nullified</b>.</td></tr>
+<tr><td>Passed (badge earned)</td><td>Outcome is Pass. Badge and its Miles appear at once; student moves to Qualiflyers.</td><td>Outcome corrected within 24 h → matching state. Malpractice flag → <b>Nullified</b>.</td></tr>
 <tr><td>Not cleared (cooldown)</td><td>Outcome is Fail. One attempt used; feedback shown.</td><td>14 days pass → Eligible. Third fail → <b>No attempts left</b>.</td></tr>
 <tr><td>Retake later</td><td>Interview could not be completed (network, interviewer absent). No attempt used.</td><td>Immediately Eligible again, with a banner explaining why.</td></tr>
 <tr><td>No-show</td><td>Student absent 10 min after the start.</td><td>First one: Eligible, no attempt used. Later ones count as an attempt.</td></tr>
 <tr><td>No attempts left</td><td>3 attempts used this season.</td><td>Terminal for the season; team can override outside the tool.</td></tr>
-<tr><td>Nullified</td><td>Team flagged malpractice, from any state.</td><td>Terminal for that track: badge removed, points removed, any upcoming interview cancelled, booking blocked. Appeal is outside the tool.</td></tr>
+<tr><td>Nullified</td><td>Team flagged malpractice, from any state.</td><td>Terminal for that track: badge removed, Miles removed, any upcoming interview cancelled, booking blocked. Appeal is outside the tool.</td></tr>
 </table>
 
 <h2>2. Edge cases handled, and assumptions</h2>
@@ -50,14 +50,14 @@ b{font-weight:600}
 <li><b>Interviewer can't make it.</b> A booked slot can't be silently removed from availability. The interviewer cancels with a reason; the student is told, loses no attempt, and can rebook.</li>
 <li><b>Outcome never recorded.</b> The slot shows "Needs outcome", the interviewer gets a banner, and the student appears under "Needs attention" for the team.</li>
 <li><b>Wrong outcome recorded.</b> Editable for 24 h (pass can become fail and the badge is withdrawn, or the reverse). Every change is in the audit log with the previous value.</li>
-<li><b>Malpractice flagged later.</b> Works from any state, including after a pass: badge and points are removed, upcoming interviews are cancelled and the slot is released.</li>
+<li><b>Malpractice flagged later.</b> Works from any state, including after a pass: badge and Miles are removed, upcoming interviews are cancelled and the slot is released.</li>
 <li><b>Feedback versus private notes.</b> Students see feedback only. Private notes sit in a schema the API does not expose.</li>
 <li><b>Students who have not booked.</b> Team view shows days since eligible, flags 7+ days, and logs reminders.</li>
 <li><b>No capacity.</b> Team view compares open slots in the next 7 days with students still to book. Students with no open times get a clear empty state.</li>
 <li><b>Time zones.</b> Stored in UTC, always shown in IST with the label.</li>
 </ul>
 </div>
-<p style="margin-top:5pt"><b>Assumptions to confirm with the GRIT team</b> (grit.niatindia.com was not reachable while building, so track names, skills and points are placeholders): 30-minute one-to-one interviews on Google Meet; students pick a time, not an interviewer, and any interviewer can assess any track; 14-day cooldown and 3 attempts per track per season; a Track Badge is worth 500 points and a nullified track contributes none; reminders go out by the existing GRIT notification channel (the prototype only logs them); appeals are handled by people, not the tool.</p>
+<p style="margin-top:5pt"><b>Assumptions to confirm with the GRIT team</b> (tracks, badges and skill levels follow grit.niatindia.com; the AI Product Mastery Novice skill list is the published example, the AI Systems Mastery list is a placeholder): 30-minute one-to-one interviews on Google Meet; students pick a time, not an interviewer, and any interviewer can assess any track; 14-day cooldown and 3 attempts per track per season; Miles per badge follow GRIT's own tables, and a nullified badge's Miles are removed; reminders go out by the existing GRIT notification channel (the prototype only logs them); appeals are handled by people, not the tool.</p>
 
 <div class="page"></div>
 <h2 style="border:0;padding-top:0">3. Data model</h2>
@@ -87,9 +87,9 @@ create unique index one_open_booking_per_student_track on bookings (student_id, 
 <div class="box"><b>Tested against the live database, with real sign-ins:</b> 20 simultaneous bookings on one slot gave 1 booked, 19 rejected, 1 row. Four different students booking the last free slot at one time gave 1 booked, 3 rejected. One student firing two bookings at once gave 1 booked, 1 rejected. The interview team can rerun the first test from the <b>Race test</b> tab.</div>
 
 <h2>4. The three messages that matter most to a student</h2>
-<div class="msg"><b>You're ready for your interview</b><br>You've cleared every skill for the Full Stack Badge. Book your interview to earn it. &nbsp;[Book interview]</div>
+<div class="msg"><b>You're ready for your Level Clearance Interview</b><br>You've cleared every skill level for the Novice Badge in AI Product Mastery. Book your interview to earn the badge and its Miles. &nbsp;[Book interview]</div>
 <div class="msg"><b>Interview booked for Thu, 12 Nov, 4:00 PM IST</b><br>Your join link opens 10 minutes before. You can reschedule until Thu, 12 Nov, 4:00 AM.</div>
-<div class="msg"><b>You didn't clear the Full Stack interview this time</b><br>Your skills stay cleared, and you can book again from 26 Nov. <i>(followed by the interviewer's feedback)</i></div>
+<div class="msg"><b>You didn't clear the AI Product Mastery interview this time</b><br>Your skill levels stay cleared, and you can book again from 26 Nov. <i>(followed by the interviewer's feedback)</i></div>
 <p style="margin-top:4pt">Why these three: the first is the only prompt that starts the flow, the second removes every "when, where, can I change it" question, and the third is the moment a student is most likely to give up, so it leads with what they keep and when they can try again. Pass, retake, cancelled-by-interviewer, slot-taken and nullified messages are also in the prototype.</p>
 
 <h2>5. Finding each part of the brief in the prototype</h2>

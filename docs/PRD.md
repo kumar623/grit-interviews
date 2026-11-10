@@ -2,7 +2,7 @@
 ## 1. Context
 GRIT is NIAT's year-long skilling competition. A student who clears every skill a Track Badge needs must pass a live online interview to earn the badge. A small interviewer team runs these with their own availability. A badge is nullified if the student is later flagged for malpractice. Today there is no product flow for booking, running, or tracking these interviews.
 
-Not verified: grit.niatindia.com is blocked from this session's network, so GRIT terminology and visuals come from the brief only. Allow the host or paste screenshots and I'll match the real site.
+GRIT terminology (Miles, Tracks, Novice to Grand Master badges, skill levels L1 to L4, Level Clearance Interview, Qualiflyers) follows grit.niatindia.com/how-grit-works. The visual style follows the GRIT dashboard (dark, left sidebar), with a light mode switch.
 
 ## 2. Goals and success measures
 - Eligible students book without help from staff: 80% book within 7 days of becoming eligible.
@@ -58,11 +58,11 @@ Double-booking prevention, three layers:
 3. Partial unique index `(student_id, track_id) WHERE status='booked'` so a student can't hold two slots.
 
 ## 8. Student messages (exact copy)
-1. "You've cleared every skill for the Full Stack Badge. Book your interview to earn it." [Book interview]
+1. "You've cleared every skill level for the Novice Badge in AI Product Mastery. Book your interview to earn the badge and its Miles." [Book interview]
 2. "Interview booked for Thu, 12 Nov, 4:00 PM IST. Your join link opens 10 minutes before. You can reschedule until 4:00 AM that day."
-3. "You didn't clear the Full Stack interview this time. Your skills stay cleared, and you can book again from 26 Nov." (followed by interviewer feedback)
+3. "You didn't clear the AI Product Mastery interview this time. Your skill levels stay cleared, and you can book again from 26 Nov." (followed by interviewer feedback)
 
-Secondary: pass ("You earned the Full Stack Badge."), slot taken ("That slot was just booked by someone else. Here are the nearest open times."), nullified.
+Secondary: pass ("You earned the Novice Badge in AI Product Mastery."), slot taken ("That slot was just booked by someone else. Here are the nearest open times."), nullified.
 
 ## 9. Before and after screens
 Student home, badge shelf, and public profile/leaderboard row, each shown before the result and after pass / fail / retake / nullified. Built as real states plus a "Before / After" compare view in the app.

@@ -21,9 +21,10 @@ Sign in with the one-tap demo accounts on the login page (Student, Interviewer, 
 | Part | Where |
 |---|---|
 | Front end | `index.html`: one page, vanilla JS, Supabase JS client |
-| Hosting | Railway function (`server.ts` is `index.html` wrapped in a small Bun server) |
+| Hosting | Railway function (`server.ts`): serves `index.html` from `main`, so a push updates the live site within a minute |
 | Database, login, live updates | Supabase: Postgres, Auth, row level security, Realtime |
 | Schema, access rules | `supabase/migrations/0001_schema_and_rls.sql` |
+| GRIT tracks and skill levels | `supabase/migrations/0005_grit_terminology.sql` |
 | Booking, outcomes, nullification | `supabase/migrations/0003_interview_logic.sql` |
 
 The browser never writes to tables. Every write goes through a database function that checks the caller's role and writes to the audit log.
@@ -50,4 +51,4 @@ cd test && npm install && node shots.js ./out
 
 ## Assumptions
 
-Track names, skills and points are placeholders. Cooldown (14 days), attempts (3 per track) and badge points (500) are assumptions to confirm with the GRIT team. See the write-up for the full list.
+Tracks, badges and skill levels follow grit.niatindia.com (the AI Product Mastery Novice Badge skills are the published example; the AI Systems Mastery list is a placeholder). The look follows the GRIT dashboard: dark by default with a left sidebar, and a Light mode switch. Cooldown (14 days) and attempts (3 per badge) are assumptions to confirm with the GRIT team.

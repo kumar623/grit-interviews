@@ -6,7 +6,7 @@ const H = 36e5, D = 864e5, now = Date.now();
 const iso = t => new Date(t).toISOString();
 const hr = Math.floor(now / H) * H;
 const skills = (n, names) => names.map((x, i) => ({ name: x, cleared: i < n }));
-const FS = ['HTML & CSS', 'JavaScript', 'React', 'Node & APIs', 'SQL Databases'];
+const FS = ['Computational Thinking L1', 'CS Fundamentals L1', 'Applied Gen AI Development L1', 'UI Engineering L2', 'SQL L2'];
 const base = { skills_total: 5, skills_cleared: 5, attempts_used: 0, max_attempts: 3 };
 const tomorrow4 = Math.floor(now / D) * D + D * 2 + 10.5 * H;
 const st = {
@@ -21,8 +21,8 @@ const st = {
 const lb = [['Meera Iyer', 1500, 1], ['Aarav Sharma', 800, 0], ['Diya Patel', 500, 0], ['Ishaan Khan', 400, 0]].map((x, i) => ({ name: x[0], points: x[1], badges: x[2], rank: i + 1, campus: 'Pune', me: i === 1 }));
 const times = []; for (let d = 1; d < 8; d++) for (const h of [4.5, 5, 5.5, 6, 9.5, 10, 10.5, 11.5, 12, 12.5]) times.push(iso(Math.floor(now / D) * D + d * D + h * H));
 const student = (states) => ({ me: { id: 's', role: 'student', name: 'Aarav Sharma' }, now: iso(now), open_times: times, leaderboard: lb,
-  tracks: states.map((s, i) => ({ id: i ? 'data' : 'fullstack', name: i ? 'Data & AI' : 'Full Stack', skills: skills(st[s].skills_cleared, FS), status: st[s] })) });
-const bk = (name, o, extra) => ({ id: 'b' + name, status: 'booked', student: name, student_id: 'x', campus: 'Pune', track: 'Full Stack', track_id: 'fullstack', attempt_no: 1, meet_url: 'https://meet.google.com/x', outcome: o || null, ...extra });
+  tracks: states.map((s, i) => ({ id: i ? 'data' : 'fullstack', name: i ? 'AI Systems Mastery' : 'AI Product Mastery', skills: skills(st[s].skills_cleared, FS), status: st[s] })) });
+const bk = (name, o, extra) => ({ id: 'b' + name, status: 'booked', student: name, student_id: 'x', campus: 'Pune', track: 'AI Product Mastery', track_id: 'fullstack', attempt_no: 1, meet_url: 'https://meet.google.com/x', outcome: o || null, ...extra });
 const slots = [
   { id: '1', starts_at: iso(hr - H), ends_at: iso(hr - H / 2), status: 'booked', interviewer: 'Priya Menon', booking: bk('Kabir Reddy') },
   { id: '2', starts_at: iso(hr + 2 * H), ends_at: iso(hr + 2.5 * H), status: 'booked', interviewer: 'Priya Menon', booking: bk('Diya Patel') },
@@ -30,15 +30,16 @@ const slots = [
   ...times.slice(0, 40).map((t, i) => ({ id: 't' + i, starts_at: t, ends_at: iso(new Date(t).getTime() + H / 2), status: 'open', interviewer: 'Priya Menon', booking: null })),
 ];
 const interviewer = { me: { id: 'i', role: 'interviewer', name: 'Priya Menon' }, now: iso(now), slots };
-const row = (n, s, extra) => ({ student_id: n, name: n, email: 'x', campus: 'Pune', track_id: 'fullstack', track: 'Full Stack', status: st[s], ...extra });
+const row = (n, s, extra) => ({ student_id: n, name: n, email: 'x', campus: 'Pune', track_id: 'fullstack', track: 'AI Product Mastery', status: st[s], ...extra });
 const team = { me: { id: 't', role: 'team', name: 'Sanjay Kulkarni' }, now: iso(now), slots,
   students: [row('Aarav Sharma', 'eligible'), row('Sneha Gupta', 'eligible', { status: { ...st.eligible, eligible_at: iso(now - 9 * D) }, last_reminder_at: iso(now - 4 * D) }), row('Diya Patel', 'booked'), row('Kabir Reddy', 'awaiting_result'), row('Meera Iyer', 'passed'), row('Rohan Verma', 'cooldown'), row('Vikram Singh', 'nullified'), row('Ishaan Khan', 'not_eligible')],
-  audit: [{ at: iso(now - D), actor: 'Neha Kapoor', action: 'outcome_recorded', student: 'Rohan Verma', track: 'Full Stack', detail: { result: 'fail' } }, { at: iso(now - 3 * D), actor: 'Sanjay Kulkarni', action: 'badge_nullified', student: 'Vikram Singh', track: 'Full Stack', detail: { reason: 'Copied submissions.' } }] };
+  audit: [{ at: iso(now - D), actor: 'Neha Kapoor', action: 'outcome_recorded', student: 'Rohan Verma', track: 'AI Product Mastery', detail: { result: 'fail' } }, { at: iso(now - 3 * D), actor: 'Sanjay Kulkarni', action: 'badge_nullified', student: 'Vikram Singh', track: 'AI Product Mastery', detail: { reason: 'Copied submissions.' } }] };
 let state = null, calls = [];
 (async () => {
   const browser = await chromium.launch();
   const run = async (name, width, data, steps) => {
     const ctx = await browser.newContext({ viewport: { width, height: 900 }, deviceScaleFactor: 1 });
+    if (process.env.THEME) await ctx.addInitScript(t => { try { localStorage.setItem('grit-theme', t); } catch (e) {} }, process.env.THEME);
     const page = await ctx.newPage();
     const errs = [];
     page.on('pageerror', e => errs.push(e.message));
