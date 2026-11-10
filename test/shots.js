@@ -47,6 +47,7 @@ let state = null, calls = [];
       const u = r.request().url();
       if (u.startsWith('file:')) return r.continue();
       if (u.includes('jsdelivr')) return r.fulfill({ contentType: 'text/javascript', body: umd });
+      if (u.includes('fonts.g')) return r.continue();
       const json = b => r.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(b) });
       if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' } });
       if (u.includes('/auth/v1/token')) return json({ access_token: 'a.e30.c', token_type: 'bearer', expires_in: 3600, expires_at: Math.floor(now / 1000) + 3600, refresh_token: 'r', user: { id: 'u', aud: 'authenticated', email: 'a@grit.demo', role: 'authenticated' } });
