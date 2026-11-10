@@ -204,15 +204,23 @@ function accountList(current){
       }))];
   });
 }
+function clearUser(){
+  if (rt){ try { SB.removeChannel(rt); } catch (e) {} rt = null; }
+  clearTimeout(rtTimer);
+  S.session = null; S.data = null; S.view = null; S.book = null; S.modal = null; S.prof = null; S.pf = null; S.profId = null;
+  S.hoursDraft = null; S.offForm = null; S.pending = {}; S.week = 0; S.day = null; S.seen = null; S.stale = false; S.busy = false; S.loading = false;
+}
+// Sign-out only ends this browser's session ('local'). The demo accounts are shared, so a global
+// sign-out here would silently end the same account's session in everyone else's browser.
+function localSignOut(){ return SB.auth.signOut({scope:'local'}).catch(function(){}); }
 function switchTo(email){
-  S.modal = null;
-  if (!S.session){ signIn(email, PW); return; }
-  if (rt){ SB.removeChannel(rt); rt = null; }
-  S.busy = true; render();
-  SB.auth.signOut().then(function(){
-    S.session = null; S.data = null; S.view = null; S.book = null; S.prof = null; S.pf = null; S.hoursDraft = null; S.pending = {}; S.week = 0; S.day = null; S.seen = null;
-    signIn(email, PW);
-  });
+  clearUser(); S.busy = true; render();
+  localSignOut().then(function(){ signIn(email, PW); });
+}
+function sessionEnded(){
+  if (!S.session) return;
+  clearUser(); S.loginErr = 'Your session ended, so you were signed out. Tap an account to sign in again.';
+  localSignOut(); render();
 }
 var THEME = 'dark';
 try { THEME = localStorage.getItem('grit-theme') || 'dark'; } catch (e) {}
@@ -307,11 +315,23 @@ var ERR = {
   NOT_FOUND:'That profile could not be found.'
 };
 function errText(e){ var m = (e && e.message) || String(e); return ERR[m] || m; }
-function call(fn, args){ return SB.rpc(fn, args || {}).then(function(r){ if (r.error) throw new Error(r.error.message); return r.data; }); }
+function isAuthError(m){ return /permission denied|JWT|not authenticated|NO_PROFILE|invalid claim|refresh token/i.test(m || ''); }
+function call(fn, args){
+  return SB.rpc(fn, args || {}).then(function(r){
+    if (r.error){
+      if (isAuthError(r.error.message)){ sessionEnded(); throw new Error('Your session ended. Please sign in again.'); }
+      throw new Error(r.error.message);
+    }
+    return r.data;
+  });
+}
 
 /* ---------- data ---------- */
 function refresh(){
+  if (!S.session) return Promise.resolve();
+  var uid = S.session.user && S.session.user.id;
   return call('app_state').then(function(d){
+    if (!S.session || (S.session.user && S.session.user.id) !== uid) return;  // signed out or switched while this was loading
     if (d.me.role === 'interviewer'){
       var ids = {}; (d.slots || []).forEach(function(x){ if (x.booking && x.booking.status === 'booked') ids[x.booking.id] = x; });
       if (S.seen && S.data && S.data.me.id === d.me.id){
@@ -325,7 +345,7 @@ function refresh(){
     if (!S.day) S.day = dayKey(now());
     if (S.view === 'student' || (S.view === 'profile' && d.me.role === 'student')) loadProfile();
     render();
-  }).catch(function(e){ S.loading = false; S.loginErr = errText(e); render(); });
+  }).catch(function(e){ S.loading = false; if (S.session) toast(errText(e)); render(); });
 }
 var rt = null, rtTimer = null;
 function subscribe(){
@@ -333,7 +353,7 @@ function subscribe(){
   try {
     rt = SB.channel('grit-live').on('postgres_changes', {event:'*', schema:'public'}, function(){
       clearTimeout(rtTimer);
-      rtTimer = setTimeout(function(){ if (S.modal) S.stale = true; else refresh(); }, 250);
+      rtTimer = setTimeout(function(){ if (!S.session) return; if (S.modal) S.stale = true; else refresh(); }, 250);
     }).subscribe();
   } catch (e) {}
 }
@@ -349,14 +369,11 @@ function signIn(email, pw){
     start(r.data.session);
   });
 }
-function signOut(){
-  if (rt){ SB.removeChannel(rt); rt = null; }
-  SB.auth.signOut().then(function(){ S.session = null; S.data = null; S.view = null; S.book = null; S.modal = null; S.prof = null; S.pf = null; S.hoursDraft = null; S.pending = {}; S.week = 0; render(); });
-}
+function signOut(){ clearUser(); S.loginErr = null; render(); localSignOut(); }
 function act(p, okMsg){
   S.busy = true; render();
   return p.then(function(){ S.busy = false; S.modal = null; return refresh(); })
-    .then(function(){ if (okMsg) toast(okMsg); })
+    .then(function(){ if (okMsg && S.session) toast(okMsg); })
     .catch(function(e){ S.busy = false; if (S.modal) S.modal.error = errText(e); else toast(errText(e)); render(); });
 }
 function closeModal(){ S.modal = null; if (S.stale){ S.stale = false; refresh(); } else render(); }
@@ -955,7 +972,12 @@ function render(){
   if (keep){ var el = document.getElementById(keep); if (el) el.focus(); }
   window.scrollTo(0, y);
 }
-SB.auth.getSession().then(function(r){ S.loading = false; if (r.data && r.data.session) start(r.data.session); else render(); });
+SB.auth.onAuthStateChange(function(event, session){
+  if (event === 'TOKEN_REFRESHED' && session && S.session) S.session = session;
+  if (event === 'SIGNED_OUT' && S.session) setTimeout(sessionEnded, 0);
+});
+SB.auth.getSession().then(function(r){ S.loading = false; if (r.data && r.data.session) start(r.data.session); else render(); })
+  .catch(function(){ S.loading = false; render(); });
 setInterval(function(){ if (S.session && S.data && !S.modal && document.visibilityState === 'visible' && S.view !== 'book') render(); }, 60000);
 })();
 </script>
