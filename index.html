@@ -113,6 +113,7 @@ tr:last-child td{border-bottom:0}
 .lb .pt{font-variant-numeric:tabular-nums;font-weight:600}
 .modal{position:fixed;inset:0;background:var(--veil);display:flex;align-items:center;justify-content:center;padding:16px;z-index:20}
 .modal .card{width:100%;max-width:480px;max-height:92vh;overflow:auto}
+.modal .card.wide{max-width:640px}
 label{display:block;font-size:13px;color:var(--ink2);margin:14px 0 6px}
 input,textarea{width:100%;font:inherit;color:inherit;padding:10px 12px;border-radius:11px;border:1px solid var(--line);background:var(--panel)}
 textarea{min-height:76px;resize:vertical}
@@ -125,6 +126,9 @@ textarea{min-height:76px;resize:vertical}
 .acct:hover{border-color:var(--ink3)}
 .acct i{font-style:normal;width:36px;height:36px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-weight:600;font-size:13px;flex:none}
 .acct b{display:block;font-weight:600} .acct span{font-size:13px;color:var(--ink2)}
+.accts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.acct.sm{margin-top:0;padding:9px 11px;gap:10px} .acct.sm i{width:30px;height:30px;font-size:12px} .acct.sm b{font-size:14px} .acct.sm span{font-size:12px}
+.acct.cur{border-color:var(--accent);opacity:1}
 .guide li{margin:0 0 10px;padding-left:4px} .guide ol{margin:12px 0 0;padding-left:20px;color:var(--ink2)} .guide b{color:var(--ink);font-weight:600}
 .ba{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 .ba .col>.tiny{display:block;margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;font-weight:600}
@@ -164,6 +168,7 @@ select{font:inherit;font-size:14px;color:inherit;padding:7px 10px;border-radius:
   .who{margin-left:0;width:100%;justify-content:space-between} h1{font-size:25px}
   .sched{grid-template-columns:70px 1fr} .sched .act{grid-column:1/-1} .login{padding:28px 16px}
   .wrap{padding:0 16px 60px} .opt{grid-template-columns:repeat(2,1fr)}
+  .accts{grid-template-columns:1fr}
   .hrs{grid-template-columns:1fr auto} .hrs .tm2{grid-column:1/-1} .kv{grid-template-columns:96px 1fr}
 }
 </style>
@@ -179,6 +184,36 @@ var PW = 'grit-demo-2026';
 var TZ = 'Asia/Kolkata';
 var S = { session:null, data:null, view:null, loading:true, modal:null, toast:null, book:null, day:null, filter:'all', after:'pass', race:null, loginErr:null, busy:false, stale:false, pending:{}, week:0, hoursDraft:null, offForm:null, prof:null, profId:null, pf:null };
 var root = document.getElementById('app');
+var ACCOUNTS = [
+  ['Students', [
+    ['aarav','Aarav Sharma','Eligible, ready to book'], ['diya','Diya Patel','Interview booked'], ['kabir','Kabir Reddy','Awaiting result'],
+    ['meera','Meera Iyer','Passed, has a badge'], ['rohan','Rohan Verma','Not cleared, in cooldown'], ['ananya','Ananya Nair','Retake, can rebook'],
+    ['vikram','Vikram Singh','Badge nullified'], ['sneha','Sneha Gupta','Eligible, reminded'], ['ishaan','Ishaan Khan','Not eligible yet'],
+    ['tara','Tara Joshi','Interview booked'], ['nikhil','Nikhil Das','Just became eligible'], ['pooja','Pooja Shetty','Eligible for 12 days']]],
+  ['Interviewers', [
+    ['priya','Priya Menon','AI Product Mastery \u00b7 Mon\u2013Fri'], ['arjun','Arjun Rao','Both tracks \u00b7 Mon\u2013Sat'], ['neha','Neha Kapoor','AI Systems Mastery \u00b7 Tue\u2013Sat, day off soon']]],
+  ['Interview team', [['sanjay','Sanjay Kulkarni','Sees every student and interviewer']]]
+];
+function accountList(current){
+  return ACCOUNTS.map(function(g){
+    return [h('div', {class:'sec'}, g[0] + ' (' + g[1].length + ')'),
+      h('div', {class:'accts'}, g[1].map(function(a){
+        var me = current && current === a[0] + '@grit.demo';
+        return h('button', {class:'acct sm' + (me ? ' cur' : ''), disabled:S.busy || me, onclick:function(){ switchTo(a[0] + '@grit.demo'); }},
+          h('i', null, initials(a[1])), h('div', null, h('b', null, a[1] + (me ? ' (you)' : '')), h('span', null, a[2])));
+      }))];
+  });
+}
+function switchTo(email){
+  S.modal = null;
+  if (!S.session){ signIn(email, PW); return; }
+  if (rt){ SB.removeChannel(rt); rt = null; }
+  S.busy = true; render();
+  SB.auth.signOut().then(function(){
+    S.session = null; S.data = null; S.view = null; S.book = null; S.prof = null; S.pf = null; S.hoursDraft = null; S.pending = {}; S.week = 0; S.day = null; S.seen = null;
+    signIn(email, PW);
+  });
+}
 var THEME = 'dark';
 try { THEME = localStorage.getItem('grit-theme') || 'dark'; } catch (e) {}
 document.documentElement.setAttribute('data-theme', THEME);
@@ -277,6 +312,14 @@ function call(fn, args){ return SB.rpc(fn, args || {}).then(function(r){ if (r.e
 /* ---------- data ---------- */
 function refresh(){
   return call('app_state').then(function(d){
+    if (d.me.role === 'interviewer'){
+      var ids = {}; (d.slots || []).forEach(function(x){ if (x.booking && x.booking.status === 'booked') ids[x.booking.id] = x; });
+      if (S.seen && S.data && S.data.me.id === d.me.id){
+        var fresh = Object.keys(ids).filter(function(k){ return !S.seen[k]; });
+        if (fresh.length){ var x = ids[fresh[0]]; setTimeout(function(){ toast('New interview assigned to you: ' + x.booking.student + ', ' + fFull(x.starts_at)); }, 50); }
+      }
+      S.seen = ids;
+    }
     S.data = d; S.loading = false;
     if (!S.view) S.view = d.me.role === 'student' ? 'home' : d.me.role === 'interviewer' ? 'schedule' : 'students';
     if (!S.day) S.day = dayKey(now());
@@ -379,7 +422,7 @@ function interviewPanel(t, st, fixed){
     var cutoff = ms(b.starts_at) - 12*36e5, canChange = now() < cutoff, opens = ms(b.starts_at) - 6e5, live = now() >= opens;
     out.push(h('div', {class:'msg info'}, h('b', null, 'Interview booked for ' + fFull(b.starts_at)),
       'Your join link opens 10 minutes before. ' + (canChange ? 'You can reschedule until ' + fDay(cutoff) + ', ' + fTime(cutoff) + '.' : 'It’s now too close to reschedule or cancel.'),
-      h('div', {class:'tiny', style:'margin-top:6px'}, 'With ' + b.interviewer + ' · 30 minutes · Google Meet')));
+      h('div', {class:'tiny', style:'margin-top:6px'}, 'Your interviewer: ' + b.interviewer + ' (assigned automatically) \u00b7 30 minutes \u00b7 Google Meet')));
     out.push(h('div', {class:'row'},
       live ? h('a', {class:'btn', href:b.meet_url, target:'_blank', rel:'noopener'}, 'Join interview')
            : h('button', {class:'btn', disabled:true}, 'Join opens ' + fTime(opens)),
@@ -438,7 +481,7 @@ function studentHome(){
 }
 function openBook(t, booking){ S.book = {track:t, booking:booking, day:null, time:null, error:null}; S.view = 'book'; window.scrollTo(0,0); render(); }
 function bookView(){
-  var bk = S.book, times = S.data.open_times || [], byDay = {}, keys = [];
+  var bk = S.book, times = (S.data.open_times || {})[bk.track.id] || [], byDay = {}, keys = [];
   times.forEach(function(t){ var k = dayKey(t); if (!byDay[k]){ byDay[k] = []; keys.push(k); } byDay[k].push(t); });
   if (!bk.day || !byDay[bk.day]) bk.day = keys[0];
   if (bk.time && times.indexOf(bk.time) < 0) bk.time = null;
@@ -446,13 +489,14 @@ function bookView(){
   function confirm(){
     var p = bk.booking ? call('reschedule_booking', {p_booking:bk.booking.id, p_starts:bk.time}) : call('book_slot', {p_starts:bk.time, p_track:bk.track.id});
     S.busy = true; render();
-    p.then(function(){ S.busy = false; S.book = null; S.view = 'home'; return refresh(); })
-     .then(function(){ toast(bk.booking ? 'Interview moved' : 'Interview booked'); })
+    p.then(function(r){ S.busy = false; S.book = null; S.view = 'home'; var who = r && r.booking ? r.booking.interviewer : null; return refresh().then(function(){ return who; }); })
+     .then(function(who){ toast((bk.booking ? 'Interview moved' : 'Interview booked') + (who ? '. Your interviewer is ' + who + '.' : '')); })
      .catch(function(e){ S.busy = false; bk.error = errText(e); bk.time = null; refresh(); });
   }
   return [h('div', {class:'head'}, h('button', {class:'link', onclick:function(){ go('home'); }}, '‹ Back'),
       h('h1', {style:'margin-top:10px'}, (bk.booking ? 'Move your ' : 'Book your ') + bk.track.name + ' interview'),
-      h('p', null, 'Just a quick layover before we award you the Miles and the badge: 30 minutes, online, one to one with a GRIT interviewer. All times are in IST.')),
+      h('p', null, 'Just a quick layover before we award you the Miles and the badge: 30 minutes, online, one to one with a GRIT interviewer. All times are in IST.'),
+      h('p', {class:'tiny', style:'margin-top:8px'}, 'You pick the time. GRIT assigns the interviewer: someone who assesses ' + bk.track.name + ', is free at that time, and has the fewest interviews that week.')),
     h('div', {class:'card'},
       bk.error ? h('div', {class:'msg warn', style:'margin-bottom:16px'}, bk.error) : null,
       !keys.length ? h('div', {class:'msg'}, h('b', null, 'No open times right now'), 'Interviewers add new times every week. Check back tomorrow, or ask the GRIT team to open more slots.') : [
@@ -467,7 +511,7 @@ function bookView(){
           }))] : null;
         }),
         h('div', {class:'row', style:'margin-top:22px;padding-top:16px;border-top:1px solid var(--line2)'},
-          h('div', {class:'sp'}, bk.time ? [h('b', null, fFull(bk.time)), h('div', {class:'tiny'}, 'We’ll match you with an available interviewer.')] : h('span', {class:'muted'}, 'Pick a time to continue')),
+          h('div', {class:'sp'}, bk.time ? [h('b', null, fFull(bk.time)), h('div', {class:'tiny'}, 'An interviewer for ' + bk.track.name + ' is assigned automatically when you confirm.')] : h('span', {class:'muted'}, 'Pick a time to continue')),
           h('button', {class:'btn', disabled:!bk.time || S.busy, onclick:confirm}, S.busy ? 'Booking…' : bk.booking ? 'Confirm new time' : 'Confirm booking'))
       ])];
 }
@@ -687,7 +731,7 @@ function students(){
 function interviewersView(){
   var list = S.data.interviewers || [];
   var open = list.reduce(function(a, x){ return a + x.stats.open_7; }, 0), waiting = S.data.students.filter(function(r){ return r.status.state === 'eligible'; }).length;
-  return [h('div', {class:'head'}, h('h1', null, 'Interviewers'), h('p', null, 'Who is working when, who is off, and how much capacity the team has this week.')),
+  return [h('div', {class:'head'}, h('h1', null, 'Interviewers'), h('p', null, 'Who is working when, who is off, and how much capacity the team has this week. New bookings go automatically to an interviewer who assesses that track, is free at that time, and has the fewest interviews that week.')),
     h('div', {class:'tiles', style:'margin-bottom:18px'},
       h('div', {class:'tile'}, h('b', null, list.length), h('span', null, 'Interviewers')),
       h('div', {class:'tile'}, h('b', null, open), h('span', null, 'Open slots, next 7 days')),
@@ -698,6 +742,7 @@ function interviewersView(){
           h('div', {class:'sp'}, h('h3', null, x.name), h('div', {class:'tiny'}, x.email + (x.phone ? ' \u00b7 ' + x.phone : '')), x.bio ? h('p', {class:'small muted', style:'margin-top:4px'}, x.bio) : null),
           h('span', {class:'chip info'}, x.stats.open_7 + ' open this week')),
         h('div', {class:'kv', style:'margin-top:14px'},
+          h('span', null, 'Assesses'), h('span', null, (x.tracks || []).join(', ') || 'No tracks'),
           h('span', null, 'Working hours'), h('span', null, hoursSummary(x.hours)),
           h('span', null, 'Weekly off'), h('span', null, offDays(x.hours).join(', ') || 'None'),
           h('span', null, 'Days off'), h('span', null, x.time_off.length ? x.time_off.map(function(o){ return fDay(o.date + 'T06:30:00Z') + (o.reason ? ' (' + o.reason + ')' : ''); }).join(', ') : 'None coming up'),
@@ -713,6 +758,7 @@ function audit(){
         if (dt.result) bits.push(RES[dt.result][0] + (dt.previous ? ' (was ' + RES[dt.previous][0].toLowerCase() + ')' : ''));
         if (dt.reason) bits.push(dt.reason);
         if (dt.starts_at) bits.push(fFull(dt.starts_at));
+        if (dt.interviewer) bits.push('assigned to ' + dt.interviewer);
         if (dt.to) bits.push('to ' + fFull(dt.to));
         if (dt.date) bits.push(fDay(dt.date + 'T06:30:00Z'));
         if (dt.cancelled) bits.push(dt.cancelled + ' interview' + (dt.cancelled > 1 ? 's' : '') + ' cancelled');
@@ -809,7 +855,7 @@ function staffProfile(){
       h('div', {class:'tile'}, h('b', null, st.open_7), h('span', null, 'Open slots, next 7 days'))) : null,
     h('div', {class:'grid2'}, editCard(me),
       me.role === 'interviewer' ? h('div', {class:'card'}, h('h3', null, 'Your availability'),
-        h('div', {class:'kv', style:'margin-top:12px'}, h('span', null, 'Working hours'), h('span', null, hoursSummary(S.data.hours)),
+        h('div', {class:'kv', style:'margin-top:12px'}, h('span', null, 'Assesses'), h('span', null, (S.data.tracks || []).join(', ')), h('span', null, 'Working hours'), h('span', null, hoursSummary(S.data.hours)),
           h('span', null, 'Weekly off'), h('span', null, offDays(S.data.hours).join(', ') || 'None'),
           h('span', null, 'Days off'), h('span', null, (S.data.time_off || []).length ? S.data.time_off.map(function(o){ return fDay(o.date + 'T06:30:00Z'); }).join(', ') : 'None coming up')),
         h('button', {class:'btn ghost', style:'margin-top:16px', onclick:function(){ go('availability'); }}, 'Change hours or days off'))
@@ -820,13 +866,13 @@ function staffProfile(){
 function guideBody(){
   return h('div', {class:'guide'}, h('h3', null, 'Review this in three minutes'),
     h('ol', null,
-      h('li', null, h('b', null, 'Student: '), 'sign in as Aarav and book a slot. Try Reschedule and Cancel.'),
+      h('li', null, h('b', null, 'Student: '), 'sign in as Aarav and book a slot. The interviewer is assigned automatically. Try Reschedule and Cancel.'),
       h('li', null, h('b', null, 'Interviewer: '), 'sign in as Priya. In Availability, set working hours (weekends off), add a day off, or open and close single slots. Then record an outcome for Kabir in Schedule.'),
       h('li', null, h('b', null, 'Result: '), 'sign back in as the student to see the result. Before and after shows all four outcomes side by side.'),
       h('li', null, h('b', null, 'Interview team: '), 'sign in as Sanjay to see who has booked and who hasn’t, open any student’s profile, check interviewers’ hours, send a reminder, or flag malpractice.'),
       h('li', null, h('b', null, 'Double booking: '), 'as Sanjay, open Race test and fire 20 bookings at one slot.'),
       h('li', null, h('b', null, 'Live updates: '), 'keep two windows open. A slot booked in one disappears from the other.')),
-    h('p', {class:'tiny', style:'margin-top:8px'}, 'Demo data resets itself every day. Reset demo in the top bar restores it at any time.'));
+    h('p', {class:'tiny', style:'margin-top:8px'}, 'Switch account in the menu jumps between any of the 16 demo accounts in one tap. Demo data resets itself every day; Reset demo restores it at any time.'));
 }
 
 /* ---------- modals ---------- */
@@ -858,18 +904,18 @@ function modal(){
       h('p', {class:'muted', style:'margin-top:6px'}, 'You have ' + m.n + ' interview' + (m.n > 1 ? 's' : '') + ' booked on ' + fDay(m.date + 'T06:30:00Z') + '. Taking the day off cancels ' + (m.n > 1 ? 'them' : 'it') + '. Each student is told straight away and can rebook without losing an attempt.'),
       h('div', {class:'row', style:'margin-top:18px;justify-content:flex-end'}, h('button', {class:'btn ghost', onclick:closeModal}, 'Keep my interviews'),
         h('button', {class:'btn bad', disabled:S.busy, onclick:function(){ addOff(m.date, m.reason, true); }}, 'Take the day off'))];
+  } else if (m.type === 'switch'){
+    body = [h('h2', null, 'Switch account'), h('p', {class:'small muted', style:'margin-top:4px'}, 'One tap signs you in as someone else. All demo accounts share the password grit-demo-2026.'),
+      accountList(S.data && S.data.me.email), h('div', {class:'row', style:'margin-top:16px;justify-content:flex-end'}, h('button', {class:'btn ghost', onclick:closeModal}, 'Close'))];
   } else if (m.type === 'guide'){
     body = [guideBody(), h('div', {class:'row', style:'margin-top:16px;justify-content:flex-end'}, h('button', {class:'btn', onclick:closeModal}, 'Got it'))];
   }
-  return h('div', {class:'modal', onclick:function(e){ if (e.target.className === 'modal') closeModal(); }}, h('div', {class:'card', role:'dialog', 'aria-modal':'true'}, body));
+  return h('div', {class:'modal', onclick:function(e){ if (e.target.className === 'modal') closeModal(); }}, h('div', {class:'card' + (m.type === 'switch' ? ' wide' : ''), role:'dialog', 'aria-modal':'true'}, body));
 }
 
 /* ---------- login and shell ---------- */
 function login(){
   var em, pw;
-  var main = [['aarav','Aarav Sharma','Student. Eligible and ready to book.'],['priya','Priya Menon','Interviewer. Weekdays 10 AM to 5 PM, weekends off.'],['sanjay','Sanjay Kulkarni','Interview team. Sees every student.']];
-  var more = [['diya','Diya, booked'],['kabir','Kabir, awaiting result'],['meera','Meera, passed'],['rohan','Rohan, not cleared'],['ananya','Ananya, retake'],['vikram','Vikram, nullified'],['ishaan','Ishaan, not eligible'],['tara','Tara, booked'],['sneha','Sneha, reminded'],['nikhil','Nikhil, just eligible'],['pooja','Pooja, eligible 12 days']];
-  var ivs = [['arjun','Arjun Rao, Mon\u2013Sat'],['neha','Neha Kapoor, has a day off']];
   return h('div', {class:'login'},
     h('div', null, h('div', {class:'row'}, h('div', {class:'mark sp'}, 'GRIT', h('span', null, 'Level Clearance Interviews')), h('button', {class:'link', onclick:flipTheme}, THEME === 'dark' ? 'Light mode' : 'Dark mode')),
       h('h1', {style:'margin:26px 0 8px'}, 'Sign in'), h('p', {class:'muted'}, 'Book, run and track the Level Clearance Interview that turns cleared skill levels into a Track Badge.'),
@@ -879,12 +925,8 @@ function login(){
           h('label', {for:'pw'}, 'Password'), pw = h('input', {id:'pw', type:'password', autocomplete:'current-password', required:true}),
           S.loginErr ? h('div', {class:'msg bad', style:'margin-top:12px'}, S.loginErr) : null,
           h('button', {class:'btn', style:'margin-top:16px;width:100%', disabled:S.busy}, S.busy ? 'Signing in…' : 'Sign in'))),
-      h('div', {class:'sec', style:'margin-top:26px'}, 'Demo accounts, one tap'),
-      main.map(function(a){ return h('button', {class:'acct', disabled:S.busy, onclick:function(){ signIn(a[0] + '@grit.demo', PW); }}, h('i', null, initials(a[1])), h('div', null, h('b', null, a[1]), h('span', null, a[2]))); }),
-      h('div', {class:'sec'}, 'More students (12 in all)'),
-      h('div', {class:'row', style:'gap:6px'}, more.map(function(a){ return h('button', {class:'btn ghost sm', disabled:S.busy, onclick:function(){ signIn(a[0] + '@grit.demo', PW); }}, a[1]); })),
-      h('div', {class:'sec'}, 'More interviewers (3 in all)'),
-      h('div', {class:'row', style:'gap:6px'}, ivs.map(function(a){ return h('button', {class:'btn ghost sm', disabled:S.busy, onclick:function(){ signIn(a[0] + '@grit.demo', PW); }}, a[1]); }))),
+      h('div', {class:'sec', style:'margin-top:26px;font-size:13px'}, 'Demo accounts \u00b7 tap any one to sign in'),
+      accountList(null)),
     h('div', {class:'card', style:'margin-top:52px'}, guideBody()));
 }
 var NAV = { student:[['home','Dashboard'],['profile','Profile'],['compare','Before and after']], interviewer:[['schedule','Schedule'],['availability','Availability'],['profile','Profile'],['compare','Before and after']],
@@ -901,6 +943,7 @@ function render(){
         h('div', {class:'nav'}, NAV[d.me.role].map(function(n){ return h('button', {class:(v === n[0] || (v === 'book' && n[0] === 'home') || (v === 'student' && n[0] === 'students')) ? 'on' : '', onclick:function(){ go(n[0]); }}, icon(n[0]), n[1]); })),
         h('div', {class:'who'}, h('i', {class:'av'}, initials(d.me.name)), h('span', null, d.me.name + ' · ' + (d.me.role === 'team' ? 'Interview team' : d.me.role === 'interviewer' ? 'Interviewer' : 'Student')),
           h('span', {class:'row', style:'gap:12px'}, h('button', {class:'link', onclick:function(){ S.modal = {type:'guide'}; render(); }}, 'Guide'),
+            h('button', {class:'link', onclick:function(){ S.modal = {type:'switch'}; render(); }}, 'Switch account'),
             h('button', {class:'link', onclick:flipTheme}, THEME === 'dark' ? 'Light mode' : 'Dark mode'),
             h('button', {class:'link', onclick:function(){ act(call('reset_demo'), 'Demo data reset'); }}, 'Reset demo'),
             h('button', {class:'link', onclick:signOut}, 'Sign out'))))),

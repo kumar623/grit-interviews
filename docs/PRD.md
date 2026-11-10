@@ -18,7 +18,7 @@ Yes, it has login. Supabase Auth (email + password), one `profiles.role` per acc
 ## 4. Requirements
 **Student**
 - S1 Home shows a per-track interview card that reflects the current state (table in §5).
-- S2 Book: pick date → 30-min slot (IST, pooled across interviewers; student does not choose the interviewer) → confirm.
+- S2 Book: pick date → 30-min slot (IST) → confirm. The student does not choose the interviewer: the database assigns one who assesses that track, is free at that time, and has the fewest interviews that week (ties at random).
 - S3 Reschedule or cancel until 12h before start.
 - S4 See result, interviewer feedback, next step (badge, cooldown end date, or rebook).
 - S5 Slots update live; if someone else takes the slot first, show a clear message and fresh slots.

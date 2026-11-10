@@ -20,7 +20,7 @@ const st = {
 };
 const lb = [['Meera Iyer', 1500, 1], ['Aarav Sharma', 800, 0], ['Diya Patel', 500, 0], ['Ishaan Khan', 400, 0]].map((x, i) => ({ name: x[0], points: x[1], badges: x[2], rank: i + 1, campus: 'Pune', me: i === 1 }));
 const times = []; for (let d = 1; d < 8; d++) for (const h of [4.5, 5, 5.5, 6, 9.5, 10, 10.5, 11.5, 12, 12.5]) times.push(iso(Math.floor(now / D) * D + d * D + h * H));
-const student = (states) => ({ me: { id: 's', role: 'student', name: 'Aarav Sharma', email: 'aarav@grit.demo', campus: 'Hyderabad', batch: '2024', phone: '+91 90000 00001' }, now: iso(now), open_times: times, leaderboard: lb,
+const student = (states) => ({ me: { id: 's', role: 'student', name: 'Aarav Sharma', email: 'aarav@grit.demo', campus: 'Hyderabad', batch: '2024', phone: '+91 90000 00001' }, now: iso(now), open_times: { fullstack: times, data: times.slice(0, 30) }, leaderboard: lb,
   tracks: states.map((s, i) => ({ id: i ? 'data' : 'fullstack', name: i ? 'AI Systems Mastery' : 'AI Product Mastery', skills: skills(st[s].skills_cleared, FS), status: st[s] })) });
 const bk = (name, o, extra) => ({ id: 'b' + name, status: 'booked', student: name, student_id: 'x', campus: 'Pune', track: 'AI Product Mastery', track_id: 'fullstack', attempt_no: 1, meet_url: 'https://meet.google.com/x', outcome: o || null, ...extra });
 const slots = [
@@ -32,13 +32,13 @@ const slots = [
 const hours = [1,2,3,4,5].map(w => ({ weekday: w, start: '10:00', end: '17:00' }));
 const offDate = new Date(Math.floor(now / D) * D + 3 * D).toISOString().slice(0, 10);
 const stats = { done: 4, upcoming: 2, awaiting: 1, passed: 3, open_7: 40 };
-const interviewer = { me: { id: 'i', role: 'interviewer', name: 'Priya Menon', email: 'priya@grit.demo', phone: '+91 90000 00011', bio: 'Interviews for AI Product Mastery. Works weekdays.', meet_url: 'https://meet.google.com/grit-priya-room' }, now: iso(now), slots, hours, time_off: [{ date: offDate, reason: 'Personal leave' }], stats };
+const interviewer = { me: { id: 'i', role: 'interviewer', name: 'Priya Menon', email: 'priya@grit.demo', phone: '+91 90000 00011', bio: 'Interviews for AI Product Mastery. Works weekdays.', meet_url: 'https://meet.google.com/grit-priya-room' }, now: iso(now), slots, hours, time_off: [{ date: offDate, reason: 'Personal leave' }], stats, tracks: ['AI Product Mastery'] };
 const row = (n, s, extra) => ({ student_id: n, name: n, email: 'x', campus: 'Pune', track_id: 'fullstack', track: 'AI Product Mastery', status: st[s], ...extra });
 const team = { me: { id: 't', role: 'team', name: 'Sanjay Kulkarni', email: 'sanjay@grit.demo', phone: '+91 90000 00021', bio: 'GRIT interview team lead.' }, now: iso(now), slots,
   interviewers: [
-    { id: 'a', name: 'Arjun Rao', email: 'arjun@grit.demo', phone: '+91 90000 00012', bio: 'Interviews for both tracks.', hours: [1,2,3,4,5,6].map(w => ({ weekday: w, start: '11:00', end: '18:00' })), time_off: [], stats: { done: 2, upcoming: 1, awaiting: 0, passed: 1, open_7: 80 } },
-    { id: 'n', name: 'Neha Kapoor', email: 'neha@grit.demo', phone: '+91 90000 00013', bio: 'Afternoons and evenings.', hours: [2,3,4,5,6].map(w => ({ weekday: w, start: '14:00', end: '20:00' })), time_off: [{ date: offDate, reason: 'Personal leave' }], stats: { done: 2, upcoming: 0, awaiting: 0, passed: 0, open_7: 48 } },
-    { id: 'p', name: 'Priya Menon', email: 'priya@grit.demo', phone: '+91 90000 00011', bio: 'Weekdays.', hours, time_off: [], stats }],
+    { id: 'a', tracks: ['AI Product Mastery', 'AI Systems Mastery'], name: 'Arjun Rao', email: 'arjun@grit.demo', phone: '+91 90000 00012', bio: 'Interviews for both tracks.', hours: [1,2,3,4,5,6].map(w => ({ weekday: w, start: '11:00', end: '18:00' })), time_off: [], stats: { done: 2, upcoming: 1, awaiting: 0, passed: 1, open_7: 80 } },
+    { id: 'n', tracks: ['AI Systems Mastery'], name: 'Neha Kapoor', email: 'neha@grit.demo', phone: '+91 90000 00013', bio: 'Afternoons and evenings.', hours: [2,3,4,5,6].map(w => ({ weekday: w, start: '14:00', end: '20:00' })), time_off: [{ date: offDate, reason: 'Personal leave' }], stats: { done: 2, upcoming: 0, awaiting: 0, passed: 0, open_7: 48 } },
+    { id: 'p', tracks: ['AI Product Mastery'], name: 'Priya Menon', email: 'priya@grit.demo', phone: '+91 90000 00011', bio: 'Weekdays.', hours, time_off: [], stats }],
   students: [row('Aarav Sharma', 'eligible'), row('Sneha Gupta', 'eligible', { status: { ...st.eligible, eligible_at: iso(now - 9 * D) }, last_reminder_at: iso(now - 4 * D) }), row('Diya Patel', 'booked'), row('Kabir Reddy', 'awaiting_result'), row('Meera Iyer', 'passed'), row('Rohan Verma', 'cooldown'), row('Vikram Singh', 'nullified'), row('Ishaan Khan', 'not_eligible')],
   audit: [{ at: iso(now - D), actor: 'Neha Kapoor', action: 'outcome_recorded', student: 'Rohan Verma', track: 'AI Product Mastery', detail: { result: 'fail' } }, { at: iso(now - 3 * D), actor: 'Sanjay Kulkarni', action: 'badge_nullified', student: 'Vikram Singh', track: 'AI Product Mastery', detail: { reason: 'Copied submissions.' } }] };
 let state = null, calls = [];
@@ -65,6 +65,7 @@ let state = null, calls = [];
         history: [{ starts_at: iso(now - 5 * D), ends_at: iso(now - 5 * D + H / 2), track: 'AI Product Mastery', interviewer: 'Neha Kapoor', status: 'completed', attempt_no: 1, result: 'fail', feedback: 'Revise CS Fundamentals, then come back.', notes: 'Could not explain time complexity.' },
                   { starts_at: iso(now - 9 * D), ends_at: iso(now - 9 * D + H / 2), track: 'AI Product Mastery', interviewer: 'Priya Menon', status: 'cancelled', cancelled_by: 'interviewer', cancel_reason: 'Interviewer is on leave', attempt_no: 1 }],
         flags: [] });
+      if (u.includes('/rpc/book_slot') && !state.failBook) { calls.push('book_slot ' + r.request().postData()); return json({ ...st.booked, booking: { ...st.booked.booking, interviewer: 'Arjun Rao' } }); }
       if (u.includes('/rpc/race_setup')) return json('2099-01-01T00:00:00Z');
       if (u.includes('/rpc/race_attempt')) { const n = JSON.parse(r.request().postData()).p_n; return json({ n, ok: n === 7, error: 'SLOT_TAKEN' }); }
       if (u.includes('/rpc/race_cleanup')) return json({ bookings_created: 1 });
@@ -93,6 +94,7 @@ let state = null, calls = [];
     state.failBook = true; await p.click('text=Confirm booking'); await p.waitForSelector('.msg.warn'); await shot('book-taken');
     await p.click('.time >> nth=1'); await p.click('text=Confirm booking'); await p.waitForSelector('.toast'); await shot('booked-toast');
     await p.click('.nav >> text=Profile'); await p.waitForSelector('.avatar'); await shot('profile');
+    await p.click('text=Switch account'); await shot('switch'); await p.click('.modal >> text=Close');
     await p.click('.nav >> text=Before and after'); await shot('compare-pass');
     for (const k of ['Not cleared', 'Retake later', 'Nullified']) { await p.click(`.seg >> text=${k}`); await shot('compare-' + k.split(' ')[0].toLowerCase()); }
   };

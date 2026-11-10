@@ -3,7 +3,7 @@
 <style>
 @page{size:A4;margin:10mm 12mm}
 *{box-sizing:border-box}
-body{font:8.1pt/1.33 -apple-system,"Helvetica Neue","Inter","Segoe UI",Arial,sans-serif;color:#1d1d1f;margin:0}
+body{font:7.95pt/1.3 -apple-system,"Helvetica Neue","Inter","Segoe UI",Arial,sans-serif;color:#1d1d1f;margin:0}
 h1{font-size:17pt;letter-spacing:-.02em;margin:0 0 2pt}
 h2{font-size:10.5pt;margin:9pt 0 4pt;padding-top:6pt;border-top:.6pt solid #d9d6cf;letter-spacing:-.01em}
 p{margin:0 0 4pt} .sub{color:#5f5e5a;margin-bottom:5pt}
@@ -66,6 +66,7 @@ b{font-weight:600}
 <tr><td>profiles</td><td>id (= auth user), role <code>student | interviewer | team</code>, full_name, campus</td><td>Role drives row level security.</td></tr>
 <tr><td>tracks, track_skills</td><td>track id, name; skill id, track_id, name</td><td>Which skills a Track Badge needs.</td></tr>
 <tr><td>student_skills</td><td>student_id, skill_id, cleared_at</td><td>Written by the contest system. Eligible = all of a track's skills present.</td></tr>
+<tr><td>interviewer_tracks</td><td>interviewer_id, track_id</td><td>Which Track Badges each interviewer can assess.</td></tr>
 <tr><td>slots</td><td>id, interviewer_id, starts_at, ends_at, status <code>open | booked | blocked</code></td><td>Unique (interviewer_id, starts_at). Interviewer availability.</td></tr>
 <tr><td>bookings</td><td>id, slot_id, student_id, track_id, attempt_no, status <code>booked | completed | no_show | cancelled</code>, meet_url, cancelled_by, cancel_reason</td><td>History is kept: a cancel or reschedule never deletes a row.</td></tr>
 <tr><td>outcomes</td><td>booking_id (PK), result <code>pass | fail | retake | no_show</code>, feedback, recorded_by, recorded_at, updated_at</td><td>One outcome per booking. Private notes live in <code>private.outcome_notes</code>.</td></tr>
@@ -83,6 +84,7 @@ insert into bookings (slot_id, student_id, track_id, attempt_no) values (...);
 -- 3. Backstops that hold even if application code is wrong
 create unique index one_live_booking_per_slot on bookings (slot_id) where status in ('booked','completed','no_show');
 create unique index one_open_booking_per_student_track on bookings (student_id, track_id) where status = 'booked';</pre>
+<p><b>Who takes the interview.</b> The student picks a time, not a person. The same transaction assigns an interviewer who assesses that track, has an open slot then, and has the fewest interviews that week (ties at random). The student and the interviewer both see the assignment straight away.</p>
 <p>The loser's transaction rolls back completely and they see: "That slot was just booked by someone else. Here are the nearest open times." Open times also update live on every screen through Supabase Realtime, so most students never reach the race at all.</p>
 <div class="box"><b>Tested against the live database, with real sign-ins:</b> 20 simultaneous bookings on one slot gave 1 booked, 19 rejected, 1 row. Four different students booking the last free slot at one time gave 1 booked, 3 rejected. One student firing two bookings at once gave 1 booked, 1 rejected. The interview team can rerun the first test from the <b>Race test</b> tab.</div>
 
@@ -93,6 +95,5 @@ create unique index one_open_booking_per_student_track on bookings (student_id, 
 <p style="margin-top:4pt">Why these three: the first is the only prompt that starts the flow, the second removes every "when, where, can I change it" question, and the third is the moment a student is most likely to give up, so it leads with what they keep and when they can try again. Pass, retake, cancelled-by-interviewer, slot-taken and nullified messages are also in the prototype.</p>
 
 <h2>5. Finding each part of the brief in the prototype</h2>
-<p><b>Booking:</b> sign in as Aarav, Home → Book interview (then Reschedule or Cancel). <b>Availability and outcomes:</b> sign in as Priya, Availability and Schedule → Record outcome. <b>Status and result:</b> any student's Home; the login page has one-tap students in every state. <b>Booked versus not booked:</b> sign in as Sanjay, Students (filters, reminders, Flag malpractice), plus Interviews, Audit log and Race test. <b>Before and after:</b> the "Before and after" tab shows the home card, badge shelf, leaderboard row and public profile for pass, not cleared, retake and nullified.</p>
-<p class="sub" style="margin-top:4pt">Not in the prototype: real video calls, email or WhatsApp delivery of reminders, an appeals flow, and GRIT's real branding and track list.</p>
+<p>Every demo account is one tap on the login page, and <b>Switch account</b> moves between them. <b>Booking:</b> Aarav, Book interview. <b>Availability and outcomes:</b> Priya, Availability (weekly hours, days off) and Schedule. <b>Status and result:</b> any student's Dashboard and Profile. <b>Booked or not:</b> Sanjay, Students and Interviewers. <b>Before and after:</b> its own tab. Not built: real video calls and reminder delivery by email or WhatsApp.</p>
 </body></html>
